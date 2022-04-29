@@ -113,7 +113,7 @@ const main = async () => {
             texts.push(
                 `Бросают ${users.limit(users.length - 1).join(", ")} и ${
                     users[users.length - 1]
-                }\n\n`
+                }\n`
             )
 
             for (let res of results) {
