@@ -39,8 +39,6 @@ function randomIntFromInterval(min, max) {
 // }
 
 const main = async () => {
-    // const guildId = "766316884617330688"
-
     const discord = new Client({
         intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
     })
