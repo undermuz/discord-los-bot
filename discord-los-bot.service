@@ -1,0 +1,11 @@
+[Unit]
+Description=Bot for League of Sweat
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/node -r dotenv/config index.js
+Restart=always
+WorkingDirectory=/root/discord-los-bot
+
+[Install]
+WantedBy=multi-user.target
