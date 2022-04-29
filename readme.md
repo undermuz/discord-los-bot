@@ -3,12 +3,19 @@
 ## Commands
 
 1. `/roll [cap=100]` - Get random number from 0 to cap (default 100)
-2. `/rolls @user1 @user 2 [@userN]` - Rolling provided user by roll command, amount of users should be from 2 to 25
+2. `/rolls @user1 @user 2 [@userN]` - Rolling provided users by roll command, amount of users should be from 2 to 25
 
-## Adding the bot to your server
+## Adding the bot to your discord-server
 
 Open this link and follow the steps to add it to your desired server:
 
 `https://discord.com/api/oauth2/authorize?client_id=969545493283737621&permissions=2147665984&scope=bot%20applications.commands`
 
 That's it.
+
+## Install bot-backend to the server
+
+1. Clone this repo to your server
+2. Run npm i
+3. Create file `.env` and put values for
+4. Copy discord-los-bot.service file to `/lib/systemd/system/`
