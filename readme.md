@@ -17,5 +17,8 @@ That's it.
 
 1. Clone this repo to your server
 2. Run npm i
-3. Create file `.env` and put values for
+3. Create file `.env` and put values for DISCORD_TOKEN and APP_ID
 4. Copy discord-los-bot.service file to `/lib/systemd/system/`
+5. Execute `sudo systemctl daemon-reload`
+6. Execute `sudo systemctl start discord-los-bot`
+7. Execute `sudo systemctl enable discord-los-bot`
