@@ -138,15 +138,17 @@ const main = async () => {
                 if (losers.length === 1) {
                     const loser = losers[0]
 
-                    texts.push(`${loser.user} выбросил наименьший результат 🤣`)
+                    texts.push(
+                        `Выбросил наименьший результат: ${loser.user} 🤣`
+                    )
                 } else {
                     texts.push(
-                        `${losers
+                        `Выбросили наименьший результат: ${losers
                             .limit(losers.length - 1)
                             .map((r) => r.user)
                             .join(", ")} и ${
                             losers[losers.length - 1].user
-                        } выбросили наименьший результат\n🤣🤣🤣`
+                        } 🤣🤣🤣`
                     )
                 }
             }
@@ -156,16 +158,16 @@ const main = async () => {
                     const winner = winners[0]
 
                     texts.push(
-                        `${winner.user} выбросил наибольший результат 🎉`
+                        `Выбросил наибольший результат: ${winner.user} 🎉`
                     )
                 } else {
                     texts.push(
-                        `${winners
+                        `Выбросили наибольший результат:${winners
                             .limit(winners.length - 1)
                             .map((r) => r.user)
                             .join(", ")} и ${
                             winners[winners.length - 1].user
-                        } выбросили наибольший результат\n🎉🎉🎉`
+                        } 🎉🎉🎉`
                     )
                 }
             }
