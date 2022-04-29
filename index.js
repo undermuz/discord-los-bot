@@ -56,7 +56,7 @@ const main = async () => {
         if (commandName === "ping") {
             await interaction.reply("Pong!")
         } else if (commandName === "roll") {
-            const texts = [`Бросает ${interaction.user}`]
+            const texts = [`Бросает ${interaction.user}...`]
 
             await interaction.reply(texts.join("\n"))
 
@@ -64,7 +64,7 @@ const main = async () => {
 
             const value = randomIntFromInterval(0, cap)
 
-            texts.push(`${interaction.user} выбрасывает ${value}`)
+            texts.push(`и выбрасывает ${value}`)
 
             await interaction.editReply(texts.join("\n"))
 
