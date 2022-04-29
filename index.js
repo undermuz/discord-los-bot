@@ -116,8 +116,12 @@ const main = async () => {
                 }\n`
             )
 
+            await interaction.reply(texts)
+
             for (let res of results) {
                 texts.push(`${res.user} выбрасывает ${res.value}`)
+
+                await interaction.reply(texts)
             }
 
             texts.push("")
@@ -166,7 +170,7 @@ const main = async () => {
                 }
             }
 
-            await interaction.reply(texts.join("\n"))
+            await interaction.editReply(texts.join("\n"))
 
             for (let res of results) {
                 if (res.value === 0) {
