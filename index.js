@@ -105,22 +105,22 @@ const main = async () => {
                 }
             })
 
-            await interaction.reply(
-                `Бросают ${users.limit(users.length - 1).join(", ")} и ${
-                    users[users.length - 1]
-                }`
-            )
-
             const maxScore = Math.max(...results.map((r) => r.value))
             const minScore = Math.min(...results.map((r) => r.value))
 
             const texts = []
 
+            texts.push(
+                `Бросают ${users.limit(users.length - 1).join(", ")} и ${
+                    users[users.length - 1]
+                }\n\n`
+            )
+
             for (let res of results) {
                 texts.push(`${res.user} выбрасывает ${res.value}`)
             }
 
-            await interaction.followUp(texts.join("\n"))
+            await interaction.reply(texts.join("\n"))
 
             for (let res of results) {
                 if (res.value === 0) {
