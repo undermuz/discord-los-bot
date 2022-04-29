@@ -116,12 +116,12 @@ const main = async () => {
                 }\n`
             )
 
-            await interaction.reply(texts)
+            await interaction.reply(texts.join("\n"))
 
             for (let res of results) {
                 texts.push(`${res.user} выбрасывает ${res.value}`)
 
-                await interaction.reply(texts.join("\n"))
+                await interaction.editReply(texts.join("\n"))
             }
 
             texts.push("")
