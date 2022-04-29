@@ -2,8 +2,8 @@
 
 ## Commands
 
-`/roll [cap=100]` - Get random number from 0 to cap (default 100)
-`/rolls @user1 @user 2 [@userN]` - Rolling provided user by roll command, amount of users should be from 2 to 25
+1. `/roll [cap=100]` - Get random number from 0 to cap (default 100)
+2. `/rolls @user1 @user 2 [@userN]` - Rolling provided user by roll command, amount of users should be from 2 to 25
 
 ## Adding the bot to your server
 
