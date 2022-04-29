@@ -120,6 +120,52 @@ const main = async () => {
                 texts.push(`${res.user} выбрасывает ${res.value}`)
             }
 
+            texts.push("")
+
+            const winners = results.filter((r) => r.value === maxScore)
+            const losers = results.filter((r) => r.value === minScore)
+
+            console.log("maxScore", maxScore)
+            console.log("minScore", minScore)
+            console.log("winners", winners)
+            console.log("losers", losers)
+
+            if (losers.length > 0) {
+                if (losers.length === 1) {
+                    const loser = losers[0]
+
+                    texts.push(`${loser.user} выбросил наименьший результат 🤣`)
+                } else {
+                    texts.push(
+                        `${losers
+                            .limit(losers.length - 1)
+                            .map((r) => r.user)
+                            .join(", ")} и ${
+                            losers[losers.length - 1].user
+                        } выбросили наименьший результат\n🤣🤣🤣`
+                    )
+                }
+            }
+
+            if (winners.length > 0) {
+                if (winners.length === 1) {
+                    const winner = winners[0]
+
+                    texts.push(
+                        `${winner.user} выбросил наибольший результат 🎉`
+                    )
+                } else {
+                    texts.push(
+                        `${winners
+                            .limit(winners.length - 1)
+                            .map((r) => r.user)
+                            .join(", ")} и ${
+                            winners[winners.length - 1].user
+                        } выбросили наибольший результат\n🎉🎉🎉`
+                    )
+                }
+            }
+
             await interaction.reply(texts.join("\n"))
 
             for (let res of results) {
@@ -137,56 +183,6 @@ const main = async () => {
                     )
                 }
             }
-
-            const winners = results.filter((r) => r.value === maxScore)
-            const losers = results.filter((r) => r.value === minScore)
-
-            console.log("maxScore", maxScore)
-            console.log("minScore", minScore)
-            console.log("winners", winners)
-            console.log("losers", losers)
-
-            const texts_end = []
-
-            if (losers.length > 0) {
-                if (losers.length === 1) {
-                    const loser = losers[0]
-
-                    texts_end.push(
-                        `${loser.user} выбросил наименьший результат 🤣`
-                    )
-                } else {
-                    texts_end.push(
-                        `${losers
-                            .limit(losers.length - 1)
-                            .map((r) => r.user)
-                            .join(", ")} и ${
-                            losers[losers.length - 1].user
-                        } выбросили наименьший результат\n🤣🤣🤣`
-                    )
-                }
-            }
-
-            if (winners.length > 0) {
-                if (winners.length === 1) {
-                    const winner = winners[0]
-
-                    texts_end.push(
-                        `${winner.user} выбросил наибольший результат 🎉`
-                    )
-                } else {
-                    texts_end.push(
-                        `${winners
-                            .limit(winners.length - 1)
-                            .map((r) => r.user)
-                            .join(", ")} и ${
-                            winners[winners.length - 1].user
-                        } выбросили наибольший результат\n🎉🎉🎉`
-                    )
-                }
-            }
-
-            await interaction.followUp(texts_end.join("\n"))
         }
     })
 
