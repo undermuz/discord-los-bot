@@ -66,6 +66,7 @@ const commands = [
                 .setRequired(false)
         ),
     rollsCmd,
+    rollChannelCmd,
 ].map((command) => command.toJSON())
 
 const rest = new REST({ version: "9" }).setToken(DISCORD_TOKEN)
