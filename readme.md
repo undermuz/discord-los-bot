@@ -22,3 +22,7 @@ That's it.
 5. Execute `sudo systemctl daemon-reload`
 6. Execute `sudo systemctl start discord-los-bot`
 7. Execute `sudo systemctl enable discord-los-bot`
+
+## TODO
+
+1. Add rolls-channel

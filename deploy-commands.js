@@ -31,6 +31,27 @@ for (let i = 3; i <= 25; i++) {
     )
 }
 
+const rollChannelCmd = new SlashCommandBuilder()
+    .setName("roll-channel")
+    .setDescription(
+        "Get random numbers for mentioned channel's member, min 2 members, max 25 members"
+    )
+    .addChannelOption((option) =>
+        option
+            .setName("roll_channel")
+            .setDescription("Ex: @channel")
+            .setRequired(true)
+    )
+
+for (let i = 2; i <= 25; i++) {
+    rollChannelCmd.addUserOption((option) =>
+        option
+            .setName(`exclude_member_${i}`)
+            .setDescription(`Pick member for exclude, Ex: @user${i}`)
+            .setRequired(false)
+    )
+}
+
 const commands = [
     new SlashCommandBuilder()
         .setName("ping")
