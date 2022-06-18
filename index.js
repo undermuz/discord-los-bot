@@ -212,6 +212,8 @@ const main = async () => {
 
             const members = channel.members
 
+            console.log(members)
+
             members.forEach((member) => {
                 if (exusers.find((u) => u.id === member.user.id)) {
                     return
