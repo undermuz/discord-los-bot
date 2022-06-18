@@ -228,6 +228,12 @@ const main = async () => {
                 return
             }
 
+            if (users.length > 25) {
+                await interaction.reply(`Ошибка: Максимум игроков 25`)
+
+                return
+            }
+
             const results = users.map((user) => {
                 return {
                     user: user,
