@@ -40,7 +40,11 @@ function randomIntFromInterval(min, max) {
 
 const main = async () => {
     const discord = new Client({
-        intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+        intents: [
+            Intents.FLAGS.GUILDS,
+            Intents.FLAGS.GUILD_MESSAGES,
+            Intents.FLAGS.GUILD_VOICE_STATES,
+        ],
     })
 
     discord.on("ready", () => {
@@ -212,6 +216,7 @@ const main = async () => {
 
             const members = channel.members
 
+            console.log(channel)
             console.log(members)
 
             members.forEach((member) => {
