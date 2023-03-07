@@ -144,7 +144,10 @@ const BaseUserRolls = async (interaction, users) => {
         echo(`❓❓❓ Никто не выиграл ❓❓❓`)
     }
 
-    console.log("[Discord][Rolls][Statistics]", getStatistics(interaction))
+    console.log(
+        `[Discord][Rolls][Statistics: ${interaction.channelId}]`,
+        getStatistics(interaction)
+    )
 
     await interaction.editReply(texts.join("\n"))
 
