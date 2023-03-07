@@ -1,6 +1,11 @@
-const { MessageAttachment } = require("discord.js")
 const { rollUsers } = require("../utils")
 const { getReaction } = require("./reactions")
+const {
+    dropFromLosers,
+    dropFromWinners,
+    processLoser,
+    processWinner,
+} = require("./statistics")
 
 /**
  *
@@ -46,21 +51,57 @@ const BaseUserRolls = async (interaction, users) => {
     const winners = results.filter((r) => r.value === maxScore)
     const losers = results.filter((r) => r.value === minScore)
 
+    for (const user of users) {
+        const winner = winners.find((w) => w.user === user)
+        const loser = losers.find((w) => w.user === user)
+
+        if (!loser) {
+            dropFromLosers(interaction, user)
+        }
+
+        if (!winner) {
+            dropFromWinners(interaction, user)
+        }
+    }
+
     echo("Итоги бросков:")
     echo("")
+
+    const getPostfixText = (count) => {
+        if (count === 1) {
+            return ` ОПЯТЬ`
+        } else if (count > 1) {
+            return ` ОПЯТЬ x${count}`
+        }
+
+        return ""
+    }
 
     if (losers.length > 0) {
         if (losers.length === 1) {
             const loser = losers[0]
 
-            echo(`❌ ${loser.user} - проиграл(а)`)
+            const looseCount = processLoser(interaction, loser.user)
+            const postfix = getPostfixText(looseCount)
+
+            echo(`❌ ${loser.user} - проиграл(а)${postfix}`)
         } else {
+            const getUserTitle = (user) => {
+                const looseCount = processLoser(interaction, user)
+
+                const postfix = getPostfixText(looseCount)
+
+                return `${user}${postfix}`
+            }
+
             echo(`❌ Проиграли:`)
             echo(
                 `${losers
                     .limit(losers.length - 1)
-                    .map((r) => r.user)
-                    .join(", ")} и ${losers[losers.length - 1].user}`
+                    .map(getUserTitle)
+                    .join(", ")} и ${getUserTitle(
+                    losers[losers.length - 1].user
+                )}`
             )
             echo(`🤣🤣🤣`)
         }
@@ -74,19 +115,32 @@ const BaseUserRolls = async (interaction, users) => {
         if (winners.length === 1) {
             const winner = winners[0]
 
-            echo(`✅ ${winner.user} - выйграл(а)`)
+            const winCount = processWinner(interaction, winner.user)
+            const postfix = getPostfixText(winCount)
+
+            echo(`✅ ${winner.user} - выиграл(а)${postfix}`)
         } else {
-            echo(`✅ Выйграли:`)
+            const getUserTitle = (user) => {
+                const winCount = processWinner(interaction, user)
+
+                const postfix = getPostfixText(winCount)
+
+                return `${user}${postfix}`
+            }
+
+            echo(`✅ Выиграли:`)
             echo(
                 `${winners
                     .limit(winners.length - 1)
-                    .map((r) => r.user)
-                    .join(", ")} и ${winners[winners.length - 1].user}`
+                    .map(getUserTitle)
+                    .join(", ")} и ${getUserTitle(
+                    winners[winners.length - 1].user
+                )}`
             )
             echo(`🎉🎉🎉`)
         }
     } else {
-        echo(`❓❓❓ Никто не выйграл ❓❓❓`)
+        echo(`❓❓❓ Никто не выиграл ❓❓❓`)
     }
 
     await interaction.editReply(texts.join("\n"))

@@ -16,6 +16,12 @@ async function randomIntFromInterval(min, max) {
     })
 }
 
+/**
+ *
+ * @param {import("discord.js").User[]} users
+ * @param {number} cap
+ * @returns {Promise<Array<{user: User, value: number}>>}
+ */
 async function rollUsers(users, cap = 100) {
     const results = []
 
