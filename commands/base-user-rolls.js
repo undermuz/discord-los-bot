@@ -86,8 +86,16 @@ const BaseUserRolls = async (interaction, users) => {
             return ` КАК?? ОПЯТЬ??? x${count} ${emoji[1]}`
         } else if (count === 5) {
             return ` ПЯТЬ РАЗ ПОДРЯД??? ${emoji[2]}`
-        } else if (count > 5) {
+        } else if (count === 6) {
             return ` Это баг? x${count}`
+        } else if (count === 7) {
+            return ` Зачем? x${count}`
+        } else if (count === 8) {
+            return ` Олег? x${count}`
+        } else if (count === 9) {
+            return ` ... x${count}`
+        } else if (count >= 10) {
+            return ` x${count} - Нужно ли мне предусматривать вариант под такой результат? Есть ли в этом смысл? Кто нибудь вообще когда либо увидет это сообщение?`
         }
 
         return ""
