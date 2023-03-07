@@ -68,19 +68,21 @@ const BaseUserRolls = async (interaction, users) => {
     echo("Итоги бросков:")
     echo("")
 
-    const getPostfixText = (count) => {
+    const getPostfixText = (count, isLoose = true) => {
+        const emoji = isLoose ? [`😡`, `🤬`, `🧨`] : [`👍`, `😎`, `💪`]
+
         if (count === 1) {
             return ` ОПЯТЬ`
         } else if (count > 1 && count <= 2) {
             return ` ОПЯТЬ x${count}`
         } else if (count === 3) {
-            return ` ОПЯТЬ??? x${count} 😡`
+            return ` ОПЯТЬ??? x${count} ${emoji[0]}`
         } else if (count === 4) {
-            return ` КАК?? ОПЯТЬ??? x${count} 🤬`
+            return ` КАК?? ОПЯТЬ??? x${count} ${emoji[1]}`
         } else if (count === 5) {
-            return ` ПЯТЬ РАЗ ПОДРЯД??? 🧨`
+            return ` ПЯТЬ РАЗ ПОДРЯД??? ${emoji[2]}`
         } else if (count > 5) {
-            return ` ОЙ ВСЁ x${count}`
+            return ` Это баг? x${count}`
         }
 
         return ""
@@ -91,14 +93,14 @@ const BaseUserRolls = async (interaction, users) => {
             const loser = losers[0]
 
             const looseCount = processLoser(interaction, loser.user)
-            const postfix = getPostfixText(looseCount)
+            const postfix = getPostfixText(looseCount, true)
 
             echo(`❌ ${loser.user} - проиграл(а)${postfix}`)
         } else {
             const getUserTitle = (user) => {
                 const looseCount = processLoser(interaction, user)
 
-                const postfix = getPostfixText(looseCount)
+                const postfix = getPostfixText(looseCount, true)
 
                 return `${user}${postfix}`
             }
@@ -125,14 +127,14 @@ const BaseUserRolls = async (interaction, users) => {
             const winner = winners[0]
 
             const winCount = processWinner(interaction, winner.user)
-            const postfix = getPostfixText(winCount)
+            const postfix = getPostfixText(winCount, false)
 
             echo(`✅ ${winner.user} - выиграл(а)${postfix}`)
         } else {
             const getUserTitle = (user) => {
                 const winCount = processWinner(interaction, user)
 
-                const postfix = getPostfixText(winCount)
+                const postfix = getPostfixText(winCount, false)
 
                 return `${user}${postfix}`
             }
