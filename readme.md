@@ -23,6 +23,12 @@ That's it.
 6. Execute `sudo systemctl start discord-los-bot`
 7. Execute `sudo systemctl enable discord-los-bot`
 
+## Diagnostic
+
+1. Show logs: `sudo journalctl -u discord-los-bot`
+2. Restart: `systemctl restart discord-los-bot`
+3. Show current status: `systemctl status discord-los-bot`
+
 ## TODO
 
-1. Add rolls-channel
+1. ✅ Add rolls-channel
