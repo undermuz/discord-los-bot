@@ -15,10 +15,10 @@ function processLoser(interaction, user) {
     let looseCount = 0
 
     if (typeof lastLosers[interaction.channelId][user.id] !== "undefined") {
-        looseCount = lastLosers[interaction.channelId][user.id]
-
         lastLosers[interaction.channelId][user.id] =
             lastLosers[interaction.channelId][user.id] + 1
+
+        looseCount = lastLosers[interaction.channelId][user.id]
     } else {
         lastLosers[interaction.channelId][user.id] = 0
     }
@@ -40,10 +40,10 @@ function processWinner(interaction, user) {
     let winCount = 0
 
     if (typeof lastWinners[interaction.channelId][user.id] !== "undefined") {
-        winCount = lastWinners[interaction.channelId][user.id]
-
         lastWinners[interaction.channelId][user.id] =
             lastWinners[interaction.channelId][user.id] + 1
+
+        winCount = lastWinners[interaction.channelId][user.id]
     } else {
         lastWinners[interaction.channelId][user.id] = 0
     }

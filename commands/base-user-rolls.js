@@ -99,7 +99,7 @@ const BaseUserRolls = async (interaction, users) => {
             echo(
                 `${losers
                     .limit(losers.length - 1)
-                    .map(getUserTitle)
+                    .map((r) => getUserTitle(r.user))
                     .join(", ")} и ${getUserTitle(
                     losers[losers.length - 1].user
                 )}`
@@ -133,7 +133,7 @@ const BaseUserRolls = async (interaction, users) => {
             echo(
                 `${winners
                     .limit(winners.length - 1)
-                    .map(getUserTitle)
+                    .map((r) => getUserTitle(r.user))
                     .join(", ")} и ${getUserTitle(
                     winners[winners.length - 1].user
                 )}`
