@@ -61,7 +61,7 @@ function dropFromLosers(interaction, user) {
         return
     }
 
-    if (!lastLosers[interaction.channelId][user.id]) {
+    if (typeof lastLosers[interaction.channelId][user.id] === "undefined") {
         return
     }
 
