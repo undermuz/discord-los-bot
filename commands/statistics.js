@@ -8,13 +8,13 @@ let lastLosers = {}
  * @returns {number} loose count
  */
 function processLoser(interaction, user) {
-    if (!lastLosers[interaction.channelId]) {
+    if (typeof lastLosers[interaction.channelId] === "undefined") {
         lastLosers[interaction.channelId] = {}
     }
 
     let looseCount = 0
 
-    if (lastLosers[interaction.channelId][user.id]) {
+    if (typeof lastLosers[interaction.channelId][user.id] !== "undefined") {
         looseCount = lastLosers[interaction.channelId][user.id]
 
         lastLosers[interaction.channelId][user.id] =
@@ -33,13 +33,13 @@ function processLoser(interaction, user) {
  * @returns {number} win count
  */
 function processWinner(interaction, user) {
-    if (!lastWinners[interaction.channelId]) {
+    if (typeof lastWinners[interaction.channelId] === "undefined") {
         lastWinners[interaction.channelId] = {}
     }
 
     let winCount = 0
 
-    if (lastWinners[interaction.channelId][user.id]) {
+    if (typeof lastWinners[interaction.channelId][user.id] !== "undefined") {
         winCount = lastWinners[interaction.channelId][user.id]
 
         lastWinners[interaction.channelId][user.id] =
@@ -57,7 +57,7 @@ function processWinner(interaction, user) {
  * @param {import("discord.js").User} user
  */
 function dropFromLosers(interaction, user) {
-    if (!lastLosers[interaction.channelId]) {
+    if (typeof lastLosers[interaction.channelId] === "undefined") {
         return
     }
 
@@ -74,11 +74,11 @@ function dropFromLosers(interaction, user) {
  * @param {import("discord.js").User} user
  */
 function dropFromWinners(interaction, user) {
-    if (!lastWinners[interaction.channelId]) {
+    if (typeof lastWinners[interaction.channelId] === "undefined") {
         return
     }
 
-    if (!lastWinners[interaction.channelId][user.id]) {
+    if (typeof lastWinners[interaction.channelId][user.id] === "undefined") {
         return
     }
 
@@ -89,11 +89,11 @@ function getStatistics(interaction) {
     let losers = []
     let winners = []
 
-    if (lastWinners[interaction.channelId]) {
+    if (typeof lastWinners[interaction.channelId] !== "undefined") {
         winners = lastWinners[interaction.channelId]
     }
 
-    if (lastLosers[interaction.channelId]) {
+    if (typeof lastLosers[interaction.channelId] !== "undefined") {
         losers = lastLosers[interaction.channelId]
     }
 
