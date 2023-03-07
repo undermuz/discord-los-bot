@@ -1,4 +1,6 @@
+const { MessageAttachment } = require("discord.js")
 const { rollUsers } = require("../utils")
+const { getReaction } = require("./reactions")
 
 /**
  *
@@ -51,7 +53,7 @@ const BaseUserRolls = async (interaction, users) => {
         if (losers.length === 1) {
             const loser = losers[0]
 
-            echo(`❌ ${loser.user} - проиграл(а):`)
+            echo(`❌ ${loser.user} - проиграл(а)`)
         } else {
             echo(`❌ Проиграли:`)
             echo(
@@ -90,22 +92,17 @@ const BaseUserRolls = async (interaction, users) => {
     await interaction.editReply(texts.join("\n"))
 
     for (let res of results) {
-        if (res.value === 0) {
-            await interaction.followUp(
-                `${res.user}\nhttps://memepedia.ru/wp-content/uploads/2017/04/%D0%B5%D0%B1%D0%B0%D1%82%D1%8C-%D1%82%D1%8B-%D0%BB%D0%BE%D1%85-%D0%BE%D1%80%D0%B8%D0%B3%D0%B8%D0%BD%D0%B0%D0%BB.jpg`
-            )
-        } else if (res.value === 99) {
-            await interaction.followUp(
-                `${res.user}\nhttp://risovach.ru/upload/2013/02/mem/so-close_12108107_orig_.jpeg`
-            )
-        } else if (res.value === 100) {
-            await interaction.followUp(
-                `${res.user}\nhttps://i.ndtvimg.com/i/2015-04/successkid_650x400_51429162983.jpg`
-            )
-        }
-    }
+        const attachment = getReaction(res.value)
 
-    return
+        if (attachment === null) {
+            continue
+        }
+
+        await interaction.followUp({
+            content: `${res.user}`,
+            files: [attachment],
+        })
+    }
 }
 
 module.exports = { BaseUserRolls }
