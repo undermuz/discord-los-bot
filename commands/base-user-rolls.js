@@ -47,7 +47,7 @@ const BaseUserRolls = async (interaction, users) => {
         if (r.length === 1) r = `  ${r}`
         if (r.length === 2) r = ` ${r}`
 
-        echo(`***${res.value}*** --------- ${res.user}`)
+        echo(`***${r}*** --------- ${res.user}`)
 
         await interaction.editReply(texts.join("\n"))
     }
@@ -71,7 +71,7 @@ const BaseUserRolls = async (interaction, users) => {
     }
 
     echo("Итоги бросков:")
-    echo("")
+    // echo("")
 
     const getPostfixText = (count, isLoose = true) => {
         const emoji = isLoose ? [`😡`, `🤬`, `🧨`] : [`👍`, `😎`, `💪`]
@@ -125,7 +125,7 @@ const BaseUserRolls = async (interaction, users) => {
         echo(`❓❓❓ Никто не проиграл ❓❓❓`)
     }
 
-    echo("")
+    // echo("")
 
     if (winners.length > 0) {
         if (winners.length === 1) {
