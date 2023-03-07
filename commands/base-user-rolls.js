@@ -71,8 +71,14 @@ const BaseUserRolls = async (interaction, users) => {
     const getPostfixText = (count) => {
         if (count === 1) {
             return ` ОПЯТЬ`
-        } else if (count > 1) {
+        } else if (count > 1 && count <= 2) {
             return ` ОПЯТЬ x${count}`
+        } else if (count === 3) {
+            return ` ОПЯТЬ? x${count} 😡`
+        } else if (count === 4) {
+            return ` ОПЯТЬ??? x${count} 🤬`
+        } else if (count === 5) {
+            return ` КАК?? ОПЯТЬ??? x${count} 🧨`
         }
 
         return ""
