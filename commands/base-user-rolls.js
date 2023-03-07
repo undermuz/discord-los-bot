@@ -42,7 +42,12 @@ const BaseUserRolls = async (interaction, users) => {
     await interaction.reply(texts.join("\n"))
 
     for (let res of results) {
-        echo(`***${res.value}*** выбрасывает ${res.user}`)
+        let r = `${res.value}`
+
+        if (r.length === 1) r = `  ${r}`
+        if (r.length === 2) r = ` ${r}`
+
+        echo(`***${res.value}*** --------- ${res.user}`)
 
         await interaction.editReply(texts.join("\n"))
     }

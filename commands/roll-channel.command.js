@@ -6,7 +6,7 @@ const { BaseUserRolls } = require("./base-user-rolls")
  */
 const RollChannelCommand = async (interaction) => {
     const users = []
-    const exusers = []
+    const exUsers = []
 
     const channel = interaction.options.getChannel("roll_channel", true)
 
@@ -20,14 +20,14 @@ const RollChannelCommand = async (interaction) => {
         const user = interaction.options.getUser(`exclude_member_${i}`)
 
         if (user) {
-            exusers.push(user)
+            exUsers.push(user)
         }
     }
 
     const members = channel.members
 
     members.forEach((member) => {
-        if (exusers.find((u) => u.id === member.user.id)) {
+        if (exUsers.find((u) => u.id === member.user.id)) {
             return
         }
 
