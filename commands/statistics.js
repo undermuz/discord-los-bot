@@ -85,9 +85,25 @@ function dropFromWinners(interaction, user) {
     lastWinners[interaction.channelId][user.id] = 0
 }
 
+function getStatistics(interaction) {
+    let losers = []
+    let winners = []
+
+    if (lastWinners[interaction.channelId]) {
+        winners = lastWinners[interaction.channelId]
+    }
+
+    if (lastLosers[interaction.channelId]) {
+        losers = lastLosers[interaction.channelId]
+    }
+
+    return { losers, winners }
+}
+
 module.exports = {
     dropFromLosers,
     dropFromWinners,
     processLoser,
     processWinner,
+    getStatistics,
 }

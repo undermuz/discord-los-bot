@@ -5,6 +5,7 @@ const {
     dropFromWinners,
     processLoser,
     processWinner,
+    getStatistics,
 } = require("./statistics")
 
 /**
@@ -142,6 +143,8 @@ const BaseUserRolls = async (interaction, users) => {
     } else {
         echo(`❓❓❓ Никто не выиграл ❓❓❓`)
     }
+
+    console.log("[Discord][Rolls][Statistics]", getStatistics(interaction))
 
     await interaction.editReply(texts.join("\n"))
 
