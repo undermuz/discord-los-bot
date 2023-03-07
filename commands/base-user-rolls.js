@@ -8,12 +8,24 @@ const { rollUsers } = require("../utils")
 const BaseUserRolls = async (interaction, users) => {
     const results = await rollUsers(users)
 
-    const maxScore = Math.max(...results.map((r) => r.value))
-    const minScore = Math.min(...results.map((r) => r.value))
+    let maxScore = Math.max(...results.map((r) => r.value))
+    let minScore = Math.min(...results.map((r) => r.value))
+
+    if (minScore === maxScore) {
+        minScore = -1
+    }
+
+    if (maxScore === 0) {
+        maxScore = -1
+    }
 
     const texts = []
 
-    texts.push(
+    const echo = (...args) => texts.push(...args)
+
+    echo("🎲🎲🎲")
+
+    echo(
         `Бросают ${users.limit(users.length - 1).join(", ")} и ${
             users[users.length - 1]
         }\n`
@@ -22,46 +34,57 @@ const BaseUserRolls = async (interaction, users) => {
     await interaction.reply(texts.join("\n"))
 
     for (let res of results) {
-        texts.push(`${res.value} выбрасывает ${res.user}`)
+        echo(`***${res.value}*** выбрасывает ${res.user}`)
 
         await interaction.editReply(texts.join("\n"))
     }
 
-    texts.push("")
+    echo("")
 
     const winners = results.filter((r) => r.value === maxScore)
     const losers = results.filter((r) => r.value === minScore)
 
-    texts.push("Итоги бросков:")
+    echo("Итоги бросков:")
+    echo("")
 
     if (losers.length > 0) {
         if (losers.length === 1) {
             const loser = losers[0]
 
-            texts.push(`❌ Проиграл(а): ${loser.user}`)
+            echo(`❌ Проиграл(а):`)
+            echo(`${loser.user}`)
         } else {
-            texts.push(
-                `❌ Проиграли: ${losers
+            echo(`❌ Проиграли:`)
+            echo(
+                `${losers
                     .limit(losers.length - 1)
                     .map((r) => r.user)
-                    .join(", ")} и ${losers[losers.length - 1].user} 🤣🤣🤣`
+                    .join(", ")} и ${losers[losers.length - 1].user}`
             )
+            echo(`🤣🤣🤣`)
         }
+    } else {
+        echo(`❓❓❓ Никто не проиграл ❓❓❓`)
     }
 
     if (winners.length > 0) {
         if (winners.length === 1) {
             const winner = winners[0]
 
-            texts.push(`✅ Выйграл(а): ${winner.user} 🎉`)
+            echo(`✅ Выйграл(а):`)
+            echo(`${winner.user}`)
         } else {
-            texts.push(
-                `✅ Выйграли:${winners
+            echo(`✅ Выйграли:`)
+            echo(
+                `${winners
                     .limit(winners.length - 1)
                     .map((r) => r.user)
-                    .join(", ")} и ${winners[winners.length - 1].user} 🎉🎉🎉`
+                    .join(", ")} и ${winners[winners.length - 1].user}`
             )
+            echo(`🎉🎉🎉`)
         }
+    } else {
+        echo(`❓❓❓ Никто не выйграл ❓❓❓`)
     }
 
     await interaction.editReply(texts.join("\n"))
