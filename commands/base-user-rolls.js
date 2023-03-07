@@ -51,8 +51,7 @@ const BaseUserRolls = async (interaction, users) => {
         if (losers.length === 1) {
             const loser = losers[0]
 
-            echo(`❌ Проиграл(а):`)
-            echo(`${loser.user}`)
+            echo(`❌ ${loser.user} - проиграл(а):`)
         } else {
             echo(`❌ Проиграли:`)
             echo(
@@ -67,12 +66,13 @@ const BaseUserRolls = async (interaction, users) => {
         echo(`❓❓❓ Никто не проиграл ❓❓❓`)
     }
 
+    echo("")
+
     if (winners.length > 0) {
         if (winners.length === 1) {
             const winner = winners[0]
 
-            echo(`✅ Выйграл(а):`)
-            echo(`${winner.user}`)
+            echo(`✅ ${winner.user} - выйграл(а)`)
         } else {
             echo(`✅ Выйграли:`)
             echo(
