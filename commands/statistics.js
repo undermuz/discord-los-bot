@@ -65,7 +65,7 @@ function dropFromLosers(interaction, user) {
         return
     }
 
-    lastLosers[interaction.channelId][user.id] = 0
+    lastLosers[interaction.channelId][user.id] = undefined
 }
 
 /**
@@ -82,7 +82,7 @@ function dropFromWinners(interaction, user) {
         return
     }
 
-    lastWinners[interaction.channelId][user.id] = 0
+    lastWinners[interaction.channelId][user.id] = undefined
 }
 
 function getStatistics(interaction) {
