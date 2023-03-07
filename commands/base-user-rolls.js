@@ -74,11 +74,13 @@ const BaseUserRolls = async (interaction, users) => {
         } else if (count > 1 && count <= 2) {
             return ` ОПЯТЬ x${count}`
         } else if (count === 3) {
-            return ` ОПЯТЬ? x${count} 😡`
+            return ` ОПЯТЬ??? x${count} 😡`
         } else if (count === 4) {
-            return ` ОПЯТЬ??? x${count} 🤬`
+            return ` КАК?? ОПЯТЬ??? x${count} 🤬`
         } else if (count === 5) {
-            return ` КАК?? ОПЯТЬ??? x${count} 🧨`
+            return ` ПЯТЬ РАЗ ПОДРЯД??? 🧨`
+        } else if (count > 5) {
+            return ` ОЙ ВСЁ x${count}`
         }
 
         return ""
