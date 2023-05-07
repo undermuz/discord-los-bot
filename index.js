@@ -94,6 +94,11 @@ const main = async () => {
                 item.guildId === reaction.message.guild.id
         )
 
+        console.log(
+            `${emojiToRole.emoji} === ${reaction.emoji.name}`,
+            emojiToRole.emoji === reaction.emoji.name
+        )
+
         if (emojiToRole && emojiToRole.emoji === reaction.emoji.name) {
             const member = await reaction.message.guild?.members.fetch(user)
 
@@ -135,6 +140,11 @@ const main = async () => {
         // The reaction is now also fully available and the properties will be reflected accurately:
         console.log(
             `${reaction.count} user(s) have given the same reaction to this message!`
+        )
+
+        console.log(
+            `${emojiToRole.emoji} === ${reaction.emoji.name}`,
+            emojiToRole.emoji === reaction.emoji.name
         )
 
         const emojiToRole = Database.getInstance().data.emojiToRoles.find(
