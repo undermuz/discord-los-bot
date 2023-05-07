@@ -89,7 +89,9 @@ const main = async () => {
         )
 
         const emojiToRole = Database.getInstance().data.emojiToRoles.find(
-            (item) => item.messageId === reaction.message.id
+            (item) =>
+                item.messageId === reaction.message.id &&
+                item.guildId === reaction.message.guild.id
         )
 
         if (emojiToRole && emojiToRole.emoji === reaction.emoji.name) {
@@ -136,7 +138,9 @@ const main = async () => {
         )
 
         const emojiToRole = Database.getInstance().data.emojiToRoles.find(
-            (item) => item.messageId === reaction.message.id
+            (item) =>
+                item.messageId === reaction.message.id &&
+                item.guildId === reaction.message.guild.id
         )
 
         if (emojiToRole && emojiToRole.emoji === reaction.emoji.name) {

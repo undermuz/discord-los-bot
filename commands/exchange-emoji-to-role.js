@@ -14,6 +14,7 @@ const ExchangeEmojiToRole = async (interaction) => {
     if (!Array.isArray(db.data.emojiToRoles)) db.data.emojiToRoles = []
 
     db.data.emojiToRoles.push({
+        guildId: interaction.guild.id,
         role: role.id,
         emoji,
         messageId,
@@ -21,9 +22,10 @@ const ExchangeEmojiToRole = async (interaction) => {
 
     await db.write()
 
-    await interaction.reply(
-        `Everyone who react ${emoji} to message <@${messageId}> will receive @${role.name}`
-    )
+    await interaction.reply({
+        content: `Everyone who react ${emoji} to message <@${messageId}> will receive @${role.name}`,
+        ephemeral: true,
+    })
 }
 
 module.exports = { ExchangeEmojiToRole }
