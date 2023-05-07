@@ -95,8 +95,8 @@ const main = async () => {
         )
 
         console.log(
-            `${emojiToRole.emoji} === ${reaction.emoji.name}`,
-            emojiToRole.emoji === reaction.emoji.name
+            `${emojiToRole?.emoji} === ${reaction.emoji.name}`,
+            emojiToRole?.emoji === reaction.emoji.name
         )
 
         if (emojiToRole && emojiToRole.emoji === reaction.emoji.name) {
@@ -143,8 +143,8 @@ const main = async () => {
         )
 
         console.log(
-            `${emojiToRole.emoji} === ${reaction.emoji.name}`,
-            emojiToRole.emoji === reaction.emoji.name
+            `${emojiToRole?.emoji} === ${reaction.emoji.name}`,
+            emojiToRole?.emoji === reaction.emoji.name
         )
 
         const emojiToRole = Database.getInstance().data.emojiToRoles.find(
