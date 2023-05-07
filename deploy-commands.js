@@ -67,6 +67,26 @@ const commands = [
         ),
     rollsCmd,
     rollChannelCmd,
+    new SlashCommandBuilder()
+        .setName("exchange-emoji-to-role")
+        .setDescription(
+            "Create a message to allow users exchanges emoji to roles"
+        )
+        .addRoleOption((option) =>
+            option
+                .setName("role")
+                .setDescription(`Role to give`)
+                .setRequired(true)
+        )
+        .addStringOption((option) =>
+            option.setName("emoji").setDescription(`Emoji`).setRequired(true)
+        )
+        .addStringOption((option) =>
+            option
+                .setName("message-id")
+                .setDescription(`Message ID`)
+                .setRequired(true)
+        ),
 ].map((command) => command.toJSON())
 
 const rest = new REST({ version: "9" }).setToken(DISCORD_TOKEN)

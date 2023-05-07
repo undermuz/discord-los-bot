@@ -9,7 +9,10 @@
 
 Open this link and follow the steps to add it to your desired server:
 
-`https://discord.com/api/oauth2/authorize?client_id=<YOUR_APP_ID>&permissions=2147665984&scope=bot%20applications.commands`
+Permissions: 1421420522566
+
+<!-- `https://discord.com/api/oauth2/authorize?client_id=<YOUR_APP_ID>&permissions=2147665984&scope=bot%20applications.commands` -->
+`https://discord.com/api/oauth2/authorize?client_id=<YOUR_APP_ID>&permissions=1421420522566&scope=bot%20applications.commands`
 
 That's it.
 
