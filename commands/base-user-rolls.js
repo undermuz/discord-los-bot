@@ -52,6 +52,21 @@ const BaseUserRolls = async (interaction, users) => {
         await interaction.editReply(texts.join("\n"))
     }
 
+    results.sort((a, b) => a.value - b.value)
+
+    texts.slice(0, -1 * results.length)
+
+    for (let res of results) {
+        let r = `${res.value}`
+
+        if (r.length === 1) r = `  ${r}`
+        if (r.length === 2) r = ` ${r}`
+
+        echo(`***${r}*** --------- ${res.user}`)
+    }
+
+    await interaction.editReply(texts.join("\n"))
+
     echo("")
 
     const winners = results.filter((r) => r.value === maxScore)

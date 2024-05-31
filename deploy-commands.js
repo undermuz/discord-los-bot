@@ -86,6 +86,11 @@ const commands = [
                 .setName("message-id")
                 .setDescription(`Message ID`)
                 .setRequired(true)
+        )
+        .addBooleanOption((option) =>
+            option
+                .setName("remove-all-roles")
+                .setDescription(`Remove all roles when user unemoji a message`)
         ),
 ].map((command) => command.toJSON())
 

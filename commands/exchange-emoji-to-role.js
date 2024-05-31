@@ -8,6 +8,8 @@ const ExchangeEmojiToRole = async (interaction) => {
     const role = interaction.options.getRole(`role`)
     const emoji = interaction.options.getString(`emoji`)
     const messageId = interaction.options.getString(`message-id`)
+    const removeAllRoles =
+        interaction.options.getString(`remove-all-roles`) ?? false
 
     const db = Database.getInstance()
 
@@ -18,6 +20,7 @@ const ExchangeEmojiToRole = async (interaction) => {
         role: role.id,
         emoji,
         messageId,
+        removeAllRoles,
     })
 
     await db.write()

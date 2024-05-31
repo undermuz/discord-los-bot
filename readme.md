@@ -35,3 +35,4 @@ That's it.
 ## TODO
 
 1. ✅ Add rolls-channel
+1. Убирать все роли при снятии лайка

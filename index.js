@@ -94,26 +94,33 @@ const main = async () => {
                 item.guildId === reaction.message.guild.id
         )
 
-        console.log(
-            `${emojiToRole?.emoji} === ${reaction.emoji.name}`,
-            emojiToRole?.emoji === reaction.emoji.name
-        )
-
-        if (emojiToRole && emojiToRole.emoji === reaction.emoji.name) {
-            const member = await reaction.message.guild?.members.fetch(user)
-
-            if (member) {
-                const hasRole = member.roles.cache.has(emojiToRole.role)
-
-                if (hasRole) {
-                    member.roles.remove(emojiToRole.role)
-                } else {
-                    console.log(`Member has not role`)
-                }
-            } else {
-                console.log(`Member not found`)
-            }
+        if (!emojiToRole || emojiToRole.emoji !== reaction.emoji.name) {
+            return
         }
+
+        const { role, removeAllRoles = true } = emojiToRole
+
+        const member = await reaction.message.guild?.members.fetch(user)
+
+        if (!member) {
+            console.log(`Member not found`)
+            return
+        }
+
+        if (removeAllRoles) {
+            await member.roles.remove(member.roles.cache.map((role) => role.id))
+
+            return
+        }
+
+        const hasRole = member.roles.cache.has(role)
+
+        if (!hasRole) {
+            console.log(`Member has not that role`)
+            return
+        }
+
+        await member.roles.remove(emojiToRole.role)
     })
 
     discord.on("messageReactionAdd", async (reaction, user) => {
@@ -148,27 +155,27 @@ const main = async () => {
                 item.guildId === reaction.message.guild.id
         )
 
-        console.log(
-            `${emojiToRole?.emoji} === ${reaction.emoji.name}`,
-            emojiToRole?.emoji === reaction.emoji.name
-        )
-
-        if (emojiToRole && emojiToRole.emoji === reaction.emoji.name) {
-            const member = await reaction.message.guild?.members.fetch(user)
-
-            if (member) {
-                const hasRole = member.roles.cache.has(emojiToRole.role)
-
-                if (!hasRole) {
-                    member.roles.add(emojiToRole.role)
-                    console.log(`[Discord] Role added to user`)
-                } else {
-                    console.log(`Member already has role`)
-                }
-            } else {
-                console.log(`Member not found`)
-            }
+        if (!emojiToRole || emojiToRole.emoji !== reaction.emoji.name) {
+            return
         }
+
+        const member = await reaction.message.guild?.members.fetch(user)
+
+        if (!member) {
+            console.log(`Member not found`)
+            return
+        }
+
+        const hasRole = member.roles.cache.has(emojiToRole.role)
+
+        if (hasRole) {
+            console.log(`Member already has role`)
+            return
+        }
+
+        await member.roles.add(emojiToRole.role)
+
+        console.log(`[Discord] Role added to user`)
     })
 
     await Database.initialize()
