@@ -54,7 +54,7 @@ const BaseUserRolls = async (interaction, users) => {
 
     results.sort((a, b) => a.value - b.value)
 
-    texts.splice(0, results.length)
+    texts.splice(texts.length - results.length, results.length)
 
     for (let res of results) {
         let r = `${res.value}`
