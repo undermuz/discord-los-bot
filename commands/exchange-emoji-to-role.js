@@ -41,6 +41,13 @@ const ExchangeEmojiToRole = async (interaction) => {
         content: `Everyone who react ${emoji} to message ${messageLink} will receive ${role}`,
         ephemeral: true,
     })
+
+    if (removeAllRoles) {
+        await interaction.reply({
+            content: `Everyone who remove react ${emoji} from message ${messageLink} will lose all roles`,
+            ephemeral: true,
+        })
+    }
 }
 
 module.exports = { ExchangeEmojiToRole }
