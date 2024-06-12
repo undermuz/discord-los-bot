@@ -100,28 +100,49 @@ function getStatistics(interaction) {
     return { losers, winners }
 }
 
+const repeatString = (count, string) => {
+    let result = ""
+
+    for (let i = 0; i < count; i++) {
+        result += string
+    }
+
+    return result
+}
+
 const getPostfixText = (count, isLoose = true) => {
     const emoji = isLoose ? [`😡`, `🤬`, `🧨`] : [`👍`, `😎`, `💪`]
 
-    if (count === 1) {
-        return ` ОПЯТЬ`
-    } else if (count > 1 && count <= 2) {
-        return ` ОПЯТЬ x${count}`
-    } else if (count === 3) {
-        return ` ОПЯТЬ??? x${count} ${emoji[0]}`
-    } else if (count === 4) {
-        return ` КАК?? ОПЯТЬ??? x${count} ${emoji[1]}`
-    } else if (count === 5) {
-        return ` ПЯТЬ РАЗ ПОДРЯД??? ${emoji[2]}`
-    } else if (count === 6) {
+    if (count === 0) {
+        return ""
+    }
+
+    if (count <= 5) {
+        let emojiIndex = count - 3
+
+        return (
+            repeatString(count, `❗`) +
+            (emojiIndex >= 0 ? ` ${emoji[emojiIndex]}` : "")
+        )
+    }
+
+    if (count === 6) {
         return ` Это баг? x${count}`
-    } else if (count === 7) {
+    }
+
+    if (count === 7) {
         return ` Зачем? x${count}`
-    } else if (count === 8) {
+    }
+
+    if (count === 8) {
         return ` Олег? x${count}`
-    } else if (count === 9) {
-        return ` ... x${count}`
-    } else if (count >= 10) {
+    }
+
+    if (count === 9) {
+        return ` Просто не играй x${count}`
+    }
+
+    if (count >= 10) {
         return ` x${count} - Нужно ли мне предусматривать вариант под такой результат? Есть ли в этом смысл? Кто нибудь вообще когда либо увидит это сообщение?`
     }
 

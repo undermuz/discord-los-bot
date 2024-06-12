@@ -63,6 +63,19 @@ const BaseUserRolls = async (interaction, users) => {
     const winners = results.filter((r) => r.value === maxScore)
     const losers = results.filter((r) => r.value === minScore)
 
+    for (const user of users) {
+        const winner = winners.find((w) => w.user === user)
+        const loser = losers.find((w) => w.user === user)
+
+        if (!loser) {
+            dropFromLosers(interaction, user)
+        }
+
+        if (!winner) {
+            dropFromWinners(interaction, user)
+        }
+    }
+
     for (let res of results) {
         let r = `${res.value}`
 
@@ -116,19 +129,6 @@ const BaseUserRolls = async (interaction, users) => {
     await interaction.editReply(texts.join("\n"))
 
     echo("")
-
-    for (const user of users) {
-        const winner = winners.find((w) => w.user === user)
-        const loser = losers.find((w) => w.user === user)
-
-        if (!loser) {
-            dropFromLosers(interaction, user)
-        }
-
-        if (!winner) {
-            dropFromWinners(interaction, user)
-        }
-    }
 
     // echo("Итоги бросков:")
     // echo("")
