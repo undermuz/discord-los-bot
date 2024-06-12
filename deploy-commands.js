@@ -92,6 +92,15 @@ const commands = [
                 .setName("remove-all-roles")
                 .setDescription(`Remove all roles when user unemoji a message`)
         ),
+    new SlashCommandBuilder()
+        .setName("cancel-exchange-emoji-to-role")
+        .setDescription("Cancel exchanges emoji to roles message interaction")
+        .addStringOption((option) =>
+            option
+                .setName("message-id")
+                .setDescription(`Message ID`)
+                .setRequired(true)
+        ),
 ].map((command) => command.toJSON())
 
 const rest = new REST({ version: "9" }).setToken(DISCORD_TOKEN)

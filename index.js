@@ -12,6 +12,9 @@ const { RollsCommand } = require("./commands/rolls.command.js")
 const { processError } = require("./utils.js")
 const { ExchangeEmojiToRole } = require("./commands/exchange-emoji-to-role.js")
 const { Database } = require("./db/instance.js")
+const {
+    CancelExchangeEmojiToRole,
+} = require("./commands/cancel-exchange-emoji-to-role.js")
 require("./array.limit.js")
 
 const main = async () => {
@@ -56,6 +59,10 @@ const main = async () => {
 
             if (commandName === "exchange-emoji-to-role") {
                 return await ExchangeEmojiToRole(interaction)
+            }
+
+            if (commandName === "cancel-exchange-emoji-to-role") {
+                return await CancelExchangeEmojiToRole(interaction)
             }
         } catch (error) {
             await processError(interaction, error)
