@@ -9,7 +9,7 @@ const CancelExchangeEmojiToRole = async (interaction) => {
 
     const { channel, guild } = interaction
 
-    const message = await interaction.channel.messages.fetch(messageId)
+    // const message = await interaction.channel.messages.fetch(messageId)
 
     const messageLink = `https://discord.com/channels/${guild.id}/${channel.id}/${messageId}`
 
