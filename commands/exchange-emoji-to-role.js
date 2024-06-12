@@ -10,7 +10,7 @@ const ExchangeEmojiToRole = async (interaction) => {
     const role = options.getRole(`role`)
     const emoji = options.getString(`emoji`)
     const messageId = options.getString(`message-id`)
-    const removeAllRoles = options.getString(`remove-all-roles`) ?? false
+    const removeAllRoles = options.getBoolean(`remove-all-roles`) ?? false
 
     const messageLink = `https://discord.com/channels/${guild.id}/${channel.id}/${messageId}`
 
