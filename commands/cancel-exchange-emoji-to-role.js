@@ -7,6 +7,8 @@ const { Database } = require("../db/instance.js")
 const CancelExchangeEmojiToRole = async (interaction) => {
     const messageId = interaction.options.getString(`message-id`)
 
+    const message = await interaction.channel.messages.fetch(messageId)
+
     const db = Database.getInstance()
 
     if (!db) {
@@ -26,7 +28,7 @@ const CancelExchangeEmojiToRole = async (interaction) => {
 
     if (!item) {
         await interaction.reply({
-            content: `There is no exchange for message <@${messageId}>`,
+            content: `There is no exchange for message ${message}`,
             ephemeral: true,
         })
 
@@ -40,7 +42,7 @@ const CancelExchangeEmojiToRole = async (interaction) => {
     await db.write()
 
     await interaction.reply({
-        content: `Exchange effect for message <@${messageId}> has canceled`,
+        content: `Exchange effect for message ${message}> has canceled`,
         ephemeral: true,
     })
 }
