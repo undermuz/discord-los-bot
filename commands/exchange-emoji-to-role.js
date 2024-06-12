@@ -27,6 +27,23 @@ const ExchangeEmojiToRole = async (interaction) => {
 
     if (!Array.isArray(db.data.emojiToRoles)) db.data.emojiToRoles = []
 
+    const existRule = db.data.emojiToRoles.find(
+        (item) =>
+            item.guildId === guild.id &&
+            item.emoji === emoji &&
+            item.messageId === messageId &&
+            item.role === role.id
+    )
+
+    if (existRule) {
+        await interaction.reply({
+            content: `Such rule for message ${messageLink} is already exists`,
+            ephemeral: true,
+        })
+
+        return
+    }
+
     db.data.emojiToRoles.push({
         guildId: guild.id,
         role: role.id,
