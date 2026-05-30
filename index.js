@@ -70,64 +70,70 @@ const main = async () => {
     })
 
     discord.on("messageReactionRemove", async (reaction, user) => {
-        console.log(`[Discord][Event: messageReactionRemove]`)
-        // When a reaction is received, check if the structure is partial
-        if (reaction.partial) {
-            // If the message this reaction belongs to was removed, the fetching might result in an API error which should be handled
-            try {
-                await reaction.fetch()
-            } catch (error) {
-                console.error(
-                    "Something went wrong when fetching the message:",
-                    error
-                )
-                // Return as `reaction.message.author` may be undefined/null
+        try {
+            console.log(`[Discord][Event: messageReactionRemove]`)
+            // When a reaction is received, check if the structure is partial
+            if (reaction.partial) {
+                // If the message this reaction belongs to was removed, the fetching might result in an API error which should be handled
+                try {
+                    await reaction.fetch()
+                } catch (error) {
+                    console.error(
+                        "Something went wrong when fetching the message:",
+                        error
+                    )
+                    // Return as `reaction.message.author` may be undefined/null
+                    return
+                }
+            }
+
+            // Now the message has been cached and is fully available
+            console.log(
+                `${reaction.message.author}'s message "${reaction.message.content}" gained a reaction ${reaction.emoji.name}!`
+            )
+            // The reaction is now also fully available and the properties will be reflected accurately:
+            console.log(
+                `${reaction.count} user(s) have given the same reaction to this message!`
+            )
+
+            const emojiToRole = Database.getInstance().data.emojiToRoles.find(
+                (item) =>
+                    item.messageId === reaction.message.id &&
+                    item.guildId === reaction.message.guild.id
+            )
+
+            if (!emojiToRole || emojiToRole.emoji !== reaction.emoji.name) {
                 return
             }
+
+            const { role, removeAllRoles = true } = emojiToRole
+
+            const member = await reaction.message.guild?.members.fetch(user)
+
+            if (!member) {
+                console.log(`Member not found`)
+                return
+            }
+
+            if (removeAllRoles) {
+                await member.roles.remove(
+                    member.roles.cache.map((role) => role.id)
+                )
+
+                return
+            }
+
+            const hasRole = member.roles.cache.has(role)
+
+            if (!hasRole) {
+                console.log(`Member has not that role`)
+                return
+            }
+
+            await member.roles.remove(emojiToRole.role)
+        } catch (e) {
+            console.error(e)
         }
-
-        // Now the message has been cached and is fully available
-        console.log(
-            `${reaction.message.author}'s message "${reaction.message.content}" gained a reaction ${reaction.emoji.name}!`
-        )
-        // The reaction is now also fully available and the properties will be reflected accurately:
-        console.log(
-            `${reaction.count} user(s) have given the same reaction to this message!`
-        )
-
-        const emojiToRole = Database.getInstance().data.emojiToRoles.find(
-            (item) =>
-                item.messageId === reaction.message.id &&
-                item.guildId === reaction.message.guild.id
-        )
-
-        if (!emojiToRole || emojiToRole.emoji !== reaction.emoji.name) {
-            return
-        }
-
-        const { role, removeAllRoles = true } = emojiToRole
-
-        const member = await reaction.message.guild?.members.fetch(user)
-
-        if (!member) {
-            console.log(`Member not found`)
-            return
-        }
-
-        if (removeAllRoles) {
-            await member.roles.remove(member.roles.cache.map((role) => role.id))
-
-            return
-        }
-
-        const hasRole = member.roles.cache.has(role)
-
-        if (!hasRole) {
-            console.log(`Member has not that role`)
-            return
-        }
-
-        await member.roles.remove(emojiToRole.role)
     })
 
     discord.on("messageReactionAdd", async (reaction, user) => {
@@ -183,6 +189,12 @@ const main = async () => {
         await member.roles.add(emojiToRole.role)
 
         console.log(`[Discord] Role added to user`)
+    })
+
+    discord.on("messageCreate", (message) => {
+        if (message.content.includes("@everyone")) {
+            message.reply("Вы упомянули @everyone!")
+        }
     })
 
     await Database.initialize()
