@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { DISCORD_USER_ERROR_MESSAGE } from "./discord-interaction.util.js"
 import { createMockConfigService } from "../../../test/helpers/config.mock.js"
 import {
     createMockChatInputInteraction,
@@ -49,7 +50,7 @@ describe("DiscordService", () => {
 
         await vi.waitFor(() => {
             expect(interaction.reply).toHaveBeenCalledWith(
-                expect.objectContaining({ content: "Ошибка: boom" }),
+                expect.objectContaining({ content: DISCORD_USER_ERROR_MESSAGE }),
             )
         })
     })
@@ -71,7 +72,7 @@ describe("DiscordService", () => {
 
         await vi.waitFor(() => {
             expect(interaction.followUp).toHaveBeenCalledWith(
-                expect.objectContaining({ content: "Ошибка: late boom" }),
+                expect.objectContaining({ content: DISCORD_USER_ERROR_MESSAGE }),
             )
         })
     })

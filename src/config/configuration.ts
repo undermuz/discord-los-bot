@@ -2,7 +2,7 @@ import { registerAs } from "@nestjs/config"
 
 export default registerAs("app", () => ({
     discordToken: process.env.DISCORD_TOKEN ?? "",
-    discordAppId: process.env.DISCORD_APP_ID ?? "",
+    discordAppId: process.env.DISCORD_APP_ID ?? process.env.APP_ID ?? "",
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
     dbPath: process.env.DB_PATH ?? "./data/bot.sqlite",
     specialUsernames:

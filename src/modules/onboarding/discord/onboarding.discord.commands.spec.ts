@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { DISCORD_USER_ERROR_MESSAGE } from "../../../platforms/discord/discord-interaction.util.js"
 import {
     createMockChatInputInteraction,
     createMockTextChannel,
@@ -75,9 +76,7 @@ describe("OnboardingDiscordCommands", () => {
             expect(onboardingService.createRule).not.toHaveBeenCalled()
             expect(interaction.reply).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    content: expect.stringContaining(
-                        "There is no such message",
-                    ),
+                    content: DISCORD_USER_ERROR_MESSAGE,
                 }),
             )
         })
@@ -134,7 +133,7 @@ describe("OnboardingDiscordCommands", () => {
 
             expect(interaction.reply).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    content: "Such rule already exists",
+                    content: DISCORD_USER_ERROR_MESSAGE,
                 }),
             )
         })
@@ -180,9 +179,7 @@ describe("OnboardingDiscordCommands", () => {
 
             expect(interaction.reply).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    content: expect.stringContaining(
-                        "There is no exchange for message",
-                    ),
+                    content: DISCORD_USER_ERROR_MESSAGE,
                 }),
             )
         })

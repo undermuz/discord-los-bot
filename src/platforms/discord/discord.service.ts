@@ -13,6 +13,7 @@ import {
     Interaction,
     Partials,
 } from "discord.js"
+import { replyWithUserError } from "./discord-interaction.util.js"
 
 export type DiscordCommandHandler = (
     interaction: ChatInputCommandInteraction,
@@ -61,7 +62,15 @@ export class DiscordService
             return
         }
 
-        void this.client.login(token)
+        void this.client.login(token).catch((error: Error) => {
+            if (error.message.includes("disallowed intents")) {
+                this.logger.error(
+                    "Discord rejected bot intents. Enable in Developer Portal → Bot → Privileged Gateway Intents: Server Members Intent (required for roles and /roll-channel).",
+                )
+            }
+
+            this.logger.error(`Discord login failed: ${error.message}`)
+        })
     }
 
     onModuleDestroy(): void {
@@ -82,21 +91,11 @@ export class DiscordService
         try {
             await handler(interaction)
         } catch (error) {
-            this.logger.error(
-                `[Command:${interaction.commandName}] ${error instanceof Error ? error.message : error}`,
-            )
-
-            if (error instanceof Error) {
-                this.logger.error(error.stack)
-            }
-
-            const content = `Ошибка: ${error instanceof Error ? error.message : "Unknown error"}`
-
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content, ephemeral: true })
-            } else {
-                await interaction.reply({ content, ephemeral: true })
-            }
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: `Command:${interaction.commandName}`,
+            })
         }
     }
 }

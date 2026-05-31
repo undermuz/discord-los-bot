@@ -131,6 +131,8 @@ export function createMockInteraction(overrides: Record<string, unknown> = {}) {
     const interaction = {
         commandName: "test",
         channelId: "channel-1",
+        guildId:
+            (overrides.guild as { id?: string } | undefined)?.id ?? "guild-1",
         user: createMockUser(),
         channel: createMockTextChannel(),
         guild: { id: "guild-1" },
@@ -147,6 +149,7 @@ export function createMockInteraction(overrides: Record<string, unknown> = {}) {
             getString: vi.fn((name: string) => optionsMap.get(name)),
             getBoolean: vi.fn((name: string) => optionsMap.get(name)),
             getNumber: vi.fn((name: string) => optionsMap.get(name)),
+            getInteger: vi.fn((name: string) => optionsMap.get(name)),
             getUser: vi.fn((name: string) => optionsMap.get(name)),
             getChannel: vi.fn((name: string) => optionsMap.get(name)),
         },
@@ -181,6 +184,7 @@ export function createMockChatInputInteraction(
             }),
             getBoolean: vi.fn((name: string) => options[name]),
             getNumber: vi.fn((name: string) => options[name]),
+            getInteger: vi.fn((name: string) => options[name]),
             getUser: vi.fn((name: string) => options[name]),
             getChannel: vi.fn((name: string, required?: boolean) => {
                 const value = options[name]

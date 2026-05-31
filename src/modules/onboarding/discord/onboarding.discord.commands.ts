@@ -1,10 +1,13 @@
-import { Injectable, OnModuleInit } from "@nestjs/common"
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import { ChatInputCommandInteraction } from "discord.js"
+import { replyWithUserError } from "../../../platforms/discord/discord-interaction.util.js"
 import { DiscordService } from "../../../platforms/discord/discord.service.js"
 import { OnboardingService } from "../onboarding.service.js"
 
 @Injectable()
 export class OnboardingDiscordCommands implements OnModuleInit {
+    private readonly logger = new Logger(OnboardingDiscordCommands.name)
+
     constructor(
         private readonly discordService: DiscordService,
         private readonly onboardingService: OnboardingService,
@@ -44,10 +47,11 @@ export class OnboardingDiscordCommands implements OnModuleInit {
 
         try {
             await channel.messages.fetch(messageId)
-        } catch {
-            await interaction.reply({
-                content: `There is no such message ${messageLink}`,
-                ephemeral: true,
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "exchange-emoji-to-role:fetch-message",
             })
             return
         }
@@ -61,12 +65,10 @@ export class OnboardingDiscordCommands implements OnModuleInit {
                 removeAllRoles,
             })
         } catch (error) {
-            await interaction.reply({
-                content:
-                    error instanceof Error
-                        ? error.message
-                        : "Failed to create emoji-to-role rule",
-                ephemeral: true,
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "exchange-emoji-to-role",
             })
             return
         }
@@ -106,12 +108,10 @@ export class OnboardingDiscordCommands implements OnModuleInit {
                 messageId,
             )
         } catch (error) {
-            await interaction.reply({
-                content:
-                    error instanceof Error
-                        ? `There is no exchange for message ${messageLink}`
-                        : "Failed to cancel exchange",
-                ephemeral: true,
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "cancel-exchange-emoji-to-role",
             })
             return
         }
