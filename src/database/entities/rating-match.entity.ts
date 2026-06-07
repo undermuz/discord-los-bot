@@ -6,10 +6,7 @@ import {
     PrimaryGeneratedColumn,
     Unique,
 } from "typeorm"
-import {
-    MatchFormat,
-    MatchStatus,
-} from "../../modules/leaderboard/types.js"
+import { MatchFormat, MatchStatus } from "../../modules/leaderboard/types.js"
 
 @Entity("rating_matches")
 @Index(["guildId", "messageId"])
