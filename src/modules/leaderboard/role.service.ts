@@ -1,29 +1,14 @@
 import { Injectable } from "@nestjs/common"
 import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
 import { RatingTierRole } from "../../database/entities/rating-tier-role.entity.js"
-import { PlayerRoleState, RoleSyncPlan } from "./types.js"
+import {
+    PlayerRoleState,
+    RoleSyncPlan,
+    RoleSyncRemoval,
+} from "./types.js"
 
 @Injectable()
 export class LeaderboardRoleService {
-    resolveRolePlan(
-        config: LeaderboardGuildConfig,
-        tiers: RatingTierRole[],
-        state: PlayerRoleState,
-    ): RoleSyncPlan {
-        const managedRoleIds = this.collectManagedRoleIds(config, tiers)
-        const targetRoleId = this.resolveTargetRoleId(config, tiers, state)
-
-        return {
-            removeRoleIds: managedRoleIds.filter(
-                (roleId) => roleId !== targetRoleId,
-            ),
-            addRoleId:
-                targetRoleId && !managedRoleIds.includes(targetRoleId)
-                    ? null
-                    : targetRoleId,
-        }
-    }
-
     buildRoleSyncPlan(
         config: LeaderboardGuildConfig,
         tiers: RatingTierRole[],
@@ -31,31 +16,45 @@ export class LeaderboardRoleService {
         currentRoleIds: string[],
     ): RoleSyncPlan {
         const managedRoleIds = this.collectManagedRoleIds(config, tiers)
-        const targetRoleId = this.resolveTargetRoleId(config, tiers, state)
+        const target = this.describeTargetRole(config, tiers, state)
+        const removeReason = this.buildRemovalReason(target.reason)
 
-        const removeRoleIds = managedRoleIds.filter((roleId) =>
-            currentRoleIds.includes(roleId),
-        )
+        const removeRoleIds = managedRoleIds
+            .filter(
+                (roleId) =>
+                    currentRoleIds.includes(roleId) &&
+                    roleId !== target.roleId,
+            )
+            .map(
+                (roleId): RoleSyncRemoval => ({
+                    roleId,
+                    reason: removeReason,
+                }),
+            )
 
         const addRoleId =
-            targetRoleId && !currentRoleIds.includes(targetRoleId)
-                ? targetRoleId
+            target.roleId && !currentRoleIds.includes(target.roleId)
+                ? target.roleId
                 : null
 
-        if (
-            targetRoleId &&
-            removeRoleIds.includes(targetRoleId) &&
-            addRoleId === targetRoleId
-        ) {
+        if (removeRoleIds.length === 0 && addRoleId === null) {
             return {
-                removeRoleIds: removeRoleIds.filter(
-                    (roleId) => roleId !== targetRoleId,
-                ),
+                removeRoleIds: [],
                 addRoleId: null,
+                addReason: null,
+                unchangedReason: this.buildUnchangedReason(
+                    target,
+                    currentRoleIds,
+                ),
             }
         }
 
-        return { removeRoleIds, addRoleId }
+        return {
+            removeRoleIds,
+            addRoleId,
+            addReason: addRoleId ? target.reason : null,
+            unchangedReason: null,
+        }
     }
 
     resolveTier(
@@ -78,24 +77,60 @@ export class LeaderboardRoleService {
         return null
     }
 
-    private resolveTargetRoleId(
+    private describeTargetRole(
         config: LeaderboardGuildConfig,
         tiers: RatingTierRole[],
         state: PlayerRoleState,
-    ): string | null {
+    ): { roleId: string | null; reason: string } {
         if (state.isFrozen) {
-            return config.freezeRoleId
+            return {
+                roleId: config.freezeRoleId,
+                reason: "player is frozen",
+            }
         }
 
         if (state.totalVerifiedMatches < config.calibrationMatchThreshold) {
-            return config.calibrationRoleId
+            return {
+                roleId: config.calibrationRoleId,
+                reason: `calibration (${state.totalVerifiedMatches}/${config.calibrationMatchThreshold} verified matches)`,
+            }
         }
 
         if (state.mainRating < 700) {
-            return null
+            return {
+                roleId: null,
+                reason: `rating ${state.mainRating} is below 700, no rank role`,
+            }
         }
 
-        return this.resolveTier(tiers, state.mainRating)?.roleId ?? null
+        const tier = this.resolveTier(tiers, state.mainRating)
+
+        if (!tier) {
+            return {
+                roleId: null,
+                reason: `rating ${state.mainRating} does not match any configured tier`,
+            }
+        }
+
+        return {
+            roleId: tier.roleId,
+            reason: `tier "${tier.name}" (rating ${state.mainRating})`,
+        }
+    }
+
+    private buildRemovalReason(targetReason: string): string {
+        return `outdated managed role, target state is ${targetReason}`
+    }
+
+    private buildUnchangedReason(
+        target: { roleId: string | null; reason: string },
+        currentRoleIds: string[],
+    ): string {
+        if (target.roleId && currentRoleIds.includes(target.roleId)) {
+            return `already has the correct role (${target.reason})`
+        }
+
+        return `no changes needed (${target.reason})`
     }
 
     private collectManagedRoleIds(

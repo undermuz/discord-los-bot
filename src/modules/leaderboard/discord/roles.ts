@@ -2,6 +2,10 @@ import { Injectable, Logger } from "@nestjs/common"
 import { GuildMember, PermissionFlagsBits, Role } from "discord.js"
 import { LeaderboardService } from "../leaderboard.service.js"
 
+type RoleManageCheck =
+    | { allowed: true }
+    | { allowed: false; reason: string }
+
 @Injectable()
 export class LeaderboardDiscordRoles {
     private readonly logger = new Logger(LeaderboardDiscordRoles.name)
@@ -10,6 +14,7 @@ export class LeaderboardDiscordRoles {
 
     async syncMemberRoles(member: GuildMember): Promise<void> {
         const me = await member.guild.members.fetchMe()
+        const memberLabel = `${member.user.tag} (${member.id})`
         const currentRoleIds = member.roles.cache.map((role) => role.id)
         const plan = await this.leaderboardService.buildRoleSyncPlan(
             member.guild.id,
@@ -17,32 +22,56 @@ export class LeaderboardDiscordRoles {
             currentRoleIds,
         )
 
-        for (const roleId of plan.removeRoleIds) {
-            if (!this.canManageRole(member, me, roleId)) {
+        if (plan.unchangedReason) {
+            this.logger.log(
+                `Role sync for ${memberLabel}: no changes, ${plan.unchangedReason}`,
+            )
+            return
+        }
+
+        for (const removal of plan.removeRoleIds) {
+            const roleLabel = this.formatRoleLabel(member, removal.roleId)
+            const check = this.canManageRole(member, me, removal.roleId)
+
+            if (!check.allowed) {
+                this.logger.warn(
+                    `Role sync for ${memberLabel}: skipped removing ${roleLabel}, ${check.reason}; removal reason: ${removal.reason}`,
+                )
                 continue
             }
 
             try {
-                await member.roles.remove(roleId)
+                await member.roles.remove(removal.roleId)
+                this.logger.log(
+                    `Role sync for ${memberLabel}: removed ${roleLabel}, ${removal.reason}`,
+                )
             } catch (error) {
-                this.logRoleError("remove", member, roleId, error)
+                this.logRoleError("remove", member, removal.roleId, error)
             }
         }
 
-        if (plan.addRoleId) {
-            if (!this.canManageRole(member, me, plan.addRoleId)) {
-                return
-            }
-
-            try {
-                await member.roles.add(plan.addRoleId)
-            } catch (error) {
-                this.logRoleError("add", member, plan.addRoleId, error)
-                return
-            }
+        if (!plan.addRoleId) {
+            return
         }
 
-        this.logger.log(`Synced leaderboard roles for ${member.id}`)
+        const roleLabel = this.formatRoleLabel(member, plan.addRoleId)
+        const check = this.canManageRole(member, me, plan.addRoleId)
+
+        if (!check.allowed) {
+            this.logger.warn(
+                `Role sync for ${memberLabel}: skipped adding ${roleLabel}, ${check.reason}; intended reason: ${plan.addReason}`,
+            )
+            return
+        }
+
+        try {
+            await member.roles.add(plan.addRoleId)
+            this.logger.log(
+                `Role sync for ${memberLabel}: added ${roleLabel}, ${plan.addReason}`,
+            )
+        } catch (error) {
+            this.logRoleError("add", member, plan.addRoleId, error)
+        }
     }
 
     async syncMembers(
@@ -54,6 +83,9 @@ export class LeaderboardDiscordRoles {
             const member = await fetchMember(userId)
 
             if (!member) {
+                this.logger.warn(
+                    `Role sync: member ${userId} not found in guild ${guildId}`,
+                )
                 continue
             }
 
@@ -65,41 +97,45 @@ export class LeaderboardDiscordRoles {
         member: GuildMember,
         me: GuildMember,
         roleId: string,
-    ): boolean {
+    ): RoleManageCheck {
         const role = member.guild.roles.cache.get(roleId)
 
         if (!role) {
-            this.logger.warn(
-                `Role ${roleId} not found in guild ${member.guild.id}`,
-            )
-            return false
+            const reason = `role ${roleId} not found in guild ${member.guild.id}`
+            this.logger.warn(reason)
+            return { allowed: false, reason }
         }
 
         if (!me.permissions.has(PermissionFlagsBits.ManageRoles)) {
-            this.logger.error(
-                `Missing Manage Roles permission in guild ${member.guild.name}`,
-            )
-            return false
+            const reason = `missing Manage Roles permission in guild ${member.guild.name}`
+            this.logger.error(reason)
+            return { allowed: false, reason }
         }
 
         if (role.managed) {
-            this.logger.error(
-                `Role "${role.name}" is managed by an integration and cannot be assigned manually`,
-            )
-            return false
+            const reason = `role "${role.name}" is managed by an integration and cannot be assigned manually`
+            this.logger.error(reason)
+            return { allowed: false, reason }
         }
 
         if (!role.editable) {
-            this.logger.error(this.buildHierarchyHint(role))
-            return false
+            const reason = this.buildHierarchyHint(role)
+            this.logger.error(reason)
+            return { allowed: false, reason }
         }
 
         if (!member.manageable) {
-            this.logger.error(this.buildMemberHierarchyHint(member, me))
-            return false
+            const reason = this.buildMemberHierarchyHint(member, me)
+            this.logger.error(reason)
+            return { allowed: false, reason }
         }
 
-        return true
+        return { allowed: true }
+    }
+
+    private formatRoleLabel(member: GuildMember, roleId: string): string {
+        const role = member.guild.roles.cache.get(roleId)
+        return role ? `"${role.name}"` : roleId
     }
 
     private buildMemberHierarchyHint(
@@ -114,18 +150,16 @@ export class LeaderboardDiscordRoles {
                 : ""
 
         return (
-            `Cannot change roles for ${member.user.tag}: ` +
             `member highest role "${memberHighest.name}" (position ${memberHighest.position}) ` +
             `is above or equal to bot highest role "${botHighest.name}" (position ${botHighest.position})` +
-            ownerNote +
-            ". Move the bot's highest role above the member's highest role in Server Settings → Roles."
+            ownerNote
         )
     }
 
     private buildHierarchyHint(role: Role): string {
         return (
-            `Cannot manage role "${role.name}": move the bot role above "${role.name}" ` +
-            "in Server Settings → Roles, and ensure the bot has Manage Roles permission"
+            `bot role is not high enough to manage "${role.name}" ` +
+            "(move the bot role above it in Server Settings → Roles)"
         )
     }
 
@@ -135,8 +169,7 @@ export class LeaderboardDiscordRoles {
         roleId: string,
         error: unknown,
     ): void {
-        const role = member.guild.roles.cache.get(roleId)
-        const roleLabel = role ? `"${role.name}"` : roleId
+        const roleLabel = this.formatRoleLabel(member, roleId)
 
         if (
             error &&
@@ -144,17 +177,17 @@ export class LeaderboardDiscordRoles {
             "code" in error &&
             error.code === 50001
         ) {
-            const me = member.guild.members.me
+            const role = member.guild.roles.cache.get(roleId)
             this.logger.error(
                 role
-                    ? this.buildHierarchyHint(role)
-                    : `Missing Access while trying to ${action} role ${roleLabel} for ${member.user.tag}`,
+                    ? `Role sync for ${member.user.tag}: failed to ${action} ${roleLabel}, ${this.buildHierarchyHint(role)}`
+                    : `Role sync for ${member.user.tag}: failed to ${action} ${roleLabel}, missing access`,
             )
             return
         }
 
         this.logger.error(
-            `Failed to ${action} role ${roleLabel} for ${member.user.tag}`,
+            `Role sync for ${member.user.tag}: failed to ${action} ${roleLabel}`,
             error instanceof Error ? error.stack : String(error),
         )
     }

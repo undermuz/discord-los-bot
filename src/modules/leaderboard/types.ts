@@ -42,9 +42,16 @@ export interface RegisterMatchDto {
     rounds: RegisterMatchRoundDto[]
 }
 
+export interface RoleSyncRemoval {
+    roleId: string
+    reason: string
+}
+
 export interface RoleSyncPlan {
-    removeRoleIds: string[]
+    removeRoleIds: RoleSyncRemoval[]
     addRoleId: string | null
+    addReason: string | null
+    unchangedReason: string | null
 }
 
 export interface PlayerRoleState {

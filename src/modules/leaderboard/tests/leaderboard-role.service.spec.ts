@@ -43,6 +43,8 @@ describe("LeaderboardRoleService", () => {
         )
 
         expect(plan.addRoleId).toBe("cal")
+        expect(plan.addReason).toContain("calibration (2/10")
+        expect(plan.unchangedReason).toBeNull()
     })
 
     it("assigns freeze role when frozen", () => {
@@ -54,6 +56,7 @@ describe("LeaderboardRoleService", () => {
         )
 
         expect(plan.addRoleId).toBe("freeze")
+        expect(plan.addReason).toBe("player is frozen")
     })
 
     it("assigns krylan for rating 1200", () => {
@@ -65,6 +68,7 @@ describe("LeaderboardRoleService", () => {
         )
 
         expect(plan.addRoleId).toBe("krylan")
+        expect(plan.addReason).toContain('tier "Крылан"')
     })
 
     it("assigns no rank role below 700", () => {
@@ -76,6 +80,37 @@ describe("LeaderboardRoleService", () => {
         )
 
         expect(plan.addRoleId).toBeNull()
+        expect(plan.unchangedReason).toContain("rating 650 is below 700")
+    })
+
+    it("keeps role unchanged when target role is already assigned", () => {
+        const plan = service.buildRoleSyncPlan(
+            config,
+            tiers,
+            { isFrozen: false, totalVerifiedMatches: 20, mainRating: 1200 },
+            ["krylan"],
+        )
+
+        expect(plan.addRoleId).toBeNull()
+        expect(plan.removeRoleIds).toEqual([])
+        expect(plan.unchangedReason).toContain("already has the correct role")
+    })
+
+    it("removes outdated managed roles with reason", () => {
+        const plan = service.buildRoleSyncPlan(
+            config,
+            tiers,
+            { isFrozen: false, totalVerifiedMatches: 20, mainRating: 1200 },
+            ["cal"],
+        )
+
+        expect(plan.removeRoleIds).toEqual([
+            {
+                roleId: "cal",
+                reason: expect.stringContaining('tier "Крылан"'),
+            },
+        ])
+        expect(plan.addRoleId).toBe("krylan")
     })
 
     it("resolves houdini tier for 1300+", () => {
