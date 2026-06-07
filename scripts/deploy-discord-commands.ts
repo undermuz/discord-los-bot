@@ -273,6 +273,35 @@ const commands = [
     new SlashCommandBuilder()
         .setName("leaderboard-config")
         .setDescription("Show current guild leaderboard settings"),
+    new SlashCommandBuilder()
+        .setName("leaderboard-reset-rating")
+        .setDescription("Reset or set a player's rating across all formats")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addUserOption((option) =>
+            option
+                .setName("player")
+                .setDescription("Player to update")
+                .setRequired(true),
+        )
+        .addNumberOption((option) =>
+            option
+                .setName("rating")
+                .setDescription(
+                    "Target rating for all formats (default: guild initial rating)",
+                )
+                .setRequired(false)
+                .setMinValue(0),
+        ),
+    new SlashCommandBuilder()
+        .setName("leaderboard-reset-stats")
+        .setDescription("Reset a player's match statistics and freeze status")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addUserOption((option) =>
+            option
+                .setName("player")
+                .setDescription("Player to reset")
+                .setRequired(true),
+        ),
 ].map((command) => command.toJSON())
 
 const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN)

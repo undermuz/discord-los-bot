@@ -333,4 +333,98 @@ describe("LeaderboardService", () => {
             }),
         ])
     })
+
+    it("resets player rating to guild initial rating", async () => {
+        playerRatingRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            format: MatchFormat.Bo1,
+            rating: 1300,
+            verifiedMatchCount: 5,
+            lastPlayedAt: new Date(),
+        })
+        playerRatingRepository.find.mockResolvedValue([
+            {
+                guildId: "g1",
+                discordUserId: "u1",
+                format: MatchFormat.Bo1,
+                rating: 1000,
+            },
+        ])
+        playerRatingRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+
+        const mainRating = await service.resetPlayerRating("g1", "u1")
+
+        expect(mainRating).toBe(1000)
+        expect(playerRatingRepository.save).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({ rating: 1000 }),
+            ]),
+        )
+    })
+
+    it("sets player rating to custom value across formats", async () => {
+        playerRatingRepository.findOne.mockResolvedValue(null)
+        playerRatingRepository.find.mockResolvedValue([
+            {
+                guildId: "g1",
+                discordUserId: "u1",
+                format: MatchFormat.Bo1,
+                rating: 1250,
+            },
+        ])
+        playerRatingRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+
+        const mainRating = await service.resetPlayerRating("g1", "u1", 1250)
+
+        expect(mainRating).toBe(1250)
+        expect(playerRatingRepository.save).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({ rating: 1250 }),
+            ]),
+        )
+    })
+
+    it("resets player statistics and clears freeze", async () => {
+        playerRatingRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            format: MatchFormat.Bo1,
+            rating: 1200,
+            verifiedMatchCount: 12,
+            lastPlayedAt: new Date("2025-01-01"),
+        })
+        playerRatingRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+        playerStateRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            isFrozen: true,
+        })
+        playerStateRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+
+        await service.resetPlayerStats("g1", "u1")
+
+        expect(playerRatingRepository.save).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    verifiedMatchCount: 0,
+                    lastPlayedAt: null,
+                }),
+            ]),
+        )
+        expect(playerStateRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({ isFrozen: false }),
+        )
+    })
 })

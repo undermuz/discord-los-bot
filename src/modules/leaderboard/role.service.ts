@@ -1,11 +1,8 @@
 import { Injectable } from "@nestjs/common"
 import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
 import { RatingTierRole } from "../../database/entities/rating-tier-role.entity.js"
-import {
-    PlayerRoleState,
-    RoleSyncPlan,
-    RoleSyncRemoval,
-} from "./types.js"
+import { formatRating } from "./rating.util.js"
+import { PlayerRoleState, RoleSyncPlan, RoleSyncRemoval } from "./types.js"
 
 @Injectable()
 export class LeaderboardRoleService {
@@ -22,8 +19,7 @@ export class LeaderboardRoleService {
         const removeRoleIds = managedRoleIds
             .filter(
                 (roleId) =>
-                    currentRoleIds.includes(roleId) &&
-                    roleId !== target.roleId,
+                    currentRoleIds.includes(roleId) && roleId !== target.roleId,
             )
             .map(
                 (roleId): RoleSyncRemoval => ({
@@ -99,7 +95,7 @@ export class LeaderboardRoleService {
         if (state.mainRating < 700) {
             return {
                 roleId: null,
-                reason: `rating ${state.mainRating} is below 700, no rank role`,
+                reason: `rating ${formatRating(state.mainRating)} is below 700, no rank role`,
             }
         }
 
@@ -108,13 +104,13 @@ export class LeaderboardRoleService {
         if (!tier) {
             return {
                 roleId: null,
-                reason: `rating ${state.mainRating} does not match any configured tier`,
+                reason: `rating ${formatRating(state.mainRating)} does not match any configured tier`,
             }
         }
 
         return {
             roleId: tier.roleId,
-            reason: `tier "${tier.name}" (rating ${state.mainRating})`,
+            reason: `tier "${tier.name}" (rating ${formatRating(state.mainRating)})`,
         }
     }
 

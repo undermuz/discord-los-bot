@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common"
 import { Message, PartialMessage } from "discord.js"
 import { LeaderboardGuildConfig } from "../../../database/entities/leaderboard-guild-config.entity.js"
 import { RatingTierRole } from "../../../database/entities/rating-tier-role.entity.js"
+import { formatRating } from "../rating.util.js"
 import { LeaderboardService } from "../leaderboard.service.js"
 import { MatchStatus } from "../types.js"
 import type { LeaderboardTopEntry } from "../types.js"
@@ -39,7 +40,7 @@ export class LeaderboardDiscordPresenter {
         const lines = [
             `**Новый рейтинговый матч (${match.format}) — ${match.winnerScore}:${match.loserScore}**`,
             `<@${match.winnerUserId}> vs <@${match.loserUserId}>`,
-            `Рейтинг: ${winnerRating} / ${loserRating}`,
+            `Рейтинг: ${formatRating(winnerRating)} / ${formatRating(loserRating)}`,
             "",
         ]
 
@@ -107,7 +108,7 @@ export class LeaderboardDiscordPresenter {
         const lines = entries.map((entry, index) => {
             const frozenSuffix = entry.isFrozen ? " ❄️" : ""
 
-            return `${index + 1}. <@${entry.discordUserId}> — ${entry.mainRating} (${entry.totalVerifiedMatches} матч.)${frozenSuffix}`
+            return `${index + 1}. <@${entry.discordUserId}> — ${formatRating(entry.mainRating)} (${entry.totalVerifiedMatches} матч.)${frozenSuffix}`
         })
 
         return [`**Топ-${size} рейтинга**`, "", ...lines].join("\n")
@@ -134,7 +135,7 @@ export class LeaderboardDiscordPresenter {
             "",
             `**Избранные форматы:** ${config.favoriteFormats.join(", ") || "не заданы"}`,
             `**Эмодзи верификации:** ${config.verifyEmoji}`,
-            `**Стартовый рейтинг:** ${config.initialRating}`,
+            `**Стартовый рейтинг:** ${formatRating(config.initialRating)}`,
             `**Порог калибровки:** ${config.calibrationMatchThreshold} матч.`,
             `**Неактивность:** ${config.inactivityDays} дн.`,
             "",

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm"
 import { Repository } from "typeorm"
 import { PlayerRating } from "../../database/entities/player-rating.entity.js"
 import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
+import { roundRating } from "./rating.util.js"
 import { MatchFormat } from "./types.js"
 
 @Injectable()
@@ -41,7 +42,7 @@ export class LeaderboardAggregateService {
             0,
         )
 
-        return Math.round(sum / favoriteFormats.length)
+        return roundRating(sum / favoriteFormats.length)
     }
 
     async getTotalVerifiedMatches(
@@ -68,6 +69,6 @@ export class LeaderboardAggregateService {
             where: { guildId, discordUserId, format },
         })
 
-        return rating?.rating ?? initialRating
+        return roundRating(rating?.rating ?? initialRating)
     }
 }

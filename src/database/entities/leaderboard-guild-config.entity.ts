@@ -23,6 +23,6 @@ export class LeaderboardGuildConfig {
     @Column({ default: 60 })
     inactivityDays: number
 
-    @Column({ default: 1000 })
+    @Column({ type: "real", default: 1000 })
     initialRating: number
 }

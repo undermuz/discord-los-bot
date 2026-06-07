@@ -15,7 +15,7 @@ export class PlayerRating {
     @Column()
     format: string
 
-    @Column({ default: 1000 })
+    @Column({ type: "real", default: 1000 })
     rating: number
 
     @Column({ default: 0 })

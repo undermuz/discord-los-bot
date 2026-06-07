@@ -35,6 +35,32 @@ describe("LeaderboardAggregateService", () => {
         expect(mainRating).toBe(1050)
     })
 
+    it("keeps hundredths in main rating average", async () => {
+        repository.find.mockResolvedValue([
+            {
+                format: "Bo1",
+                rating: 1000.25,
+            },
+            {
+                format: "Bo3",
+                rating: 1000.75,
+            },
+        ])
+
+        const mainRating = await service.getMainRating("g1", "u1", {
+            guildId: "g1",
+            favoriteFormats: ["Bo1", "Bo3"],
+            verifyEmoji: "✅",
+            calibrationRoleId: "cal",
+            freezeRoleId: "freeze",
+            calibrationMatchThreshold: 10,
+            inactivityDays: 60,
+            initialRating: 1000,
+        })
+
+        expect(mainRating).toBe(1000.5)
+    })
+
     it("returns initial rating when no favorite formats configured", async () => {
         const mainRating = await service.getMainRating("g1", "u1", {
             guildId: "g1",

@@ -17,6 +17,7 @@ import {
     computeK2,
     LeaderboardRatingService,
 } from "./rating.service.js"
+import { roundRating } from "./rating.util.js"
 import { LeaderboardRoleService } from "./role.service.js"
 import { LeaderboardSeriesService } from "./series.service.js"
 import {
@@ -371,8 +372,10 @@ export class LeaderboardService {
             where: { guildId, discordUserId },
         })
 
+        const roundedInitialRating = roundRating(initialRating)
+
         for (const rating of ratings) {
-            rating.rating = initialRating
+            rating.rating = roundedInitialRating
         }
 
         if (ratings.length > 0) {
@@ -380,21 +383,65 @@ export class LeaderboardService {
         }
     }
 
-    async resetAllRatings(
+    async resetPlayerRating(
         guildId: string,
         discordUserId: string,
-        initialRating: number,
-    ): Promise<void> {
-        const ratings = await this.playerRatingRepository.find({
-            where: { guildId, discordUserId },
-        })
+        rating?: number,
+    ): Promise<number> {
+        const config = await this.configService.requireGuildConfig(guildId)
+        const targetRating = roundRating(rating ?? config.initialRating)
+        const ratings = await Promise.all(
+            MATCH_FORMATS.map((format) =>
+                this.getOrCreatePlayerRating(
+                    guildId,
+                    discordUserId,
+                    format,
+                    config.initialRating,
+                ),
+            ),
+        )
 
-        for (const rating of ratings) {
-            rating.rating = initialRating
+        for (const playerRating of ratings) {
+            playerRating.rating = targetRating
         }
 
-        if (ratings.length > 0) {
-            await this.playerRatingRepository.save(ratings)
+        await this.playerRatingRepository.save(ratings)
+
+        return this.aggregateService.getMainRating(
+            guildId,
+            discordUserId,
+            config,
+        )
+    }
+
+    async resetPlayerStats(
+        guildId: string,
+        discordUserId: string,
+    ): Promise<void> {
+        const config = await this.configService.requireGuildConfig(guildId)
+        const ratings = await Promise.all(
+            MATCH_FORMATS.map((format) =>
+                this.getOrCreatePlayerRating(
+                    guildId,
+                    discordUserId,
+                    format,
+                    config.initialRating,
+                ),
+            ),
+        )
+
+        for (const playerRating of ratings) {
+            playerRating.verifiedMatchCount = 0
+            playerRating.lastPlayedAt = null
+        }
+
+        await this.playerRatingRepository.save(ratings)
+
+        const state = await this.getOrCreatePlayerState(guildId, discordUserId)
+
+        if (state.isFrozen) {
+            state.isFrozen = false
+            await this.playerStateRepository.save(state)
         }
     }
 
@@ -522,7 +569,7 @@ export class LeaderboardService {
                 guildId,
                 discordUserId,
                 format,
-                rating: initialRating,
+                rating: roundRating(initialRating),
             }),
         )
     }

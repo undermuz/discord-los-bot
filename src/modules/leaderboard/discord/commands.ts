@@ -19,6 +19,7 @@ import {
 } from "../types.js"
 import { getHeroAutocompleteChoices } from "../heroes.js"
 import { getMapAutocompleteChoices } from "../maps.js"
+import { formatRating } from "../rating.util.js"
 import { LeaderboardDiscordRoles } from "./roles.js"
 import { LeaderboardDiscordPresenter } from "./presenter.js"
 
@@ -67,6 +68,14 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         this.discordService.registerCommand(
             "leaderboard-config",
             (interaction) => this.commandShowGuildConfig(interaction),
+        )
+        this.discordService.registerCommand(
+            "leaderboard-reset-rating",
+            (interaction) => this.commandResetPlayerRating(interaction),
+        )
+        this.discordService.registerCommand(
+            "leaderboard-reset-stats",
+            (interaction) => this.commandResetPlayerStats(interaction),
         )
     }
 
@@ -292,13 +301,13 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             )
 
         const formatLines = summary.formatRatings.map(
-            ({ format, rating }) => `${format}: ${rating}`,
+            ({ format, rating }) => `${format}: ${formatRating(rating)}`,
         )
 
         await interaction.reply({
             content: [
                 `**Рейтинг ${target.toString()}**`,
-                `Основной рейтинг: ${summary.state.mainRating}`,
+                `Основной рейтинг: ${formatRating(summary.state.mainRating)}`,
                 `Матчей: ${summary.state.totalVerifiedMatches}`,
                 summary.state.isFrozen ? "Статус: Заморозка" : "",
                 "",
@@ -358,6 +367,114 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         await interaction.reply({
             content: this.presenter.formatWelcomeContent(),
         })
+    }
+
+    private async commandResetPlayerRating(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        if (!this.isAdmin(interaction)) {
+            await interaction.reply({
+                content: "Administrator permission required",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const target = interaction.options.getUser("player", true)
+        const rating = interaction.options.getNumber("rating")
+
+        if (rating !== null && rating < 0) {
+            await interaction.reply({
+                content: "Rating must be a non-negative number",
+                ephemeral: true,
+            })
+            return
+        }
+
+        try {
+            const config = await this.configService.requireGuildConfig(guildId)
+            const mainRating = await this.leaderboardService.resetPlayerRating(
+                guildId,
+                target.id,
+                rating ?? undefined,
+            )
+            const appliedRating = rating ?? config.initialRating
+
+            await this.rolesAdapter.syncMembers(
+                guildId,
+                [target.id],
+                (userId) => interaction.guild!.members.fetch(userId),
+            )
+
+            await interaction.reply({
+                content: [
+                    `Rating updated for ${target.toString()}.`,
+                    `All formats set to ${formatRating(appliedRating)}, main rating is now ${formatRating(mainRating)}.`,
+                ].join(" "),
+                ephemeral: true,
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "leaderboard-reset-rating",
+            })
+        }
+    }
+
+    private async commandResetPlayerStats(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        if (!this.isAdmin(interaction)) {
+            await interaction.reply({
+                content: "Administrator permission required",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const target = interaction.options.getUser("player", true)
+
+        try {
+            await this.leaderboardService.resetPlayerStats(guildId, target.id)
+
+            await this.rolesAdapter.syncMembers(
+                guildId,
+                [target.id],
+                (userId) => interaction.guild!.members.fetch(userId),
+            )
+
+            await interaction.reply({
+                content: `Statistics reset for ${target.toString()}: verified match counts cleared, last played dates cleared, freeze removed.`,
+                ephemeral: true,
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "leaderboard-reset-stats",
+            })
+        }
     }
 
     private async commandShowGuildConfig(

@@ -121,5 +121,13 @@ describe("LeaderboardRatingService", () => {
     it("applies delta to rating", () => {
         expect(service.applyDelta(1000, 5)).toBe(1005)
         expect(service.applyDelta(1000, -5)).toBe(995)
+        expect(service.applyDelta(1000, 4.567)).toBe(1004.57)
+    })
+
+    it("returns fractional deltas for uneven ratings", () => {
+        const result = computeRatingDelta(1050, 1000, 10, defaultCoeffs)
+
+        expect(result.winnerDelta).toBe(3.75)
+        expect(result.loserDelta).toBe(-3.75)
     })
 })

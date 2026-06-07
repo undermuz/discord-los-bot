@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common"
+import { roundRating } from "./rating.util.js"
 import { MatchFormat, SeriesScore } from "./types.js"
 
 export interface RatingDelta {
@@ -65,10 +66,10 @@ export function computeRatingDelta(
     const diffFactor = 1 + ratingDiff / 400
 
     return {
-        winnerDelta: Math.round(
+        winnerDelta: roundRating(
             base * coeffs.winner.k1 * coeffs.winner.k2 * diffFactor,
         ),
-        loserDelta: Math.round(-base * coeffs.loser.k2 * diffFactor),
+        loserDelta: roundRating(-base * coeffs.loser.k2 * diffFactor),
     }
 }
 
@@ -158,6 +159,6 @@ export class LeaderboardRatingService {
     }
 
     applyDelta(rating: number, delta: number): number {
-        return rating + delta
+        return roundRating(rating + delta)
     }
 }

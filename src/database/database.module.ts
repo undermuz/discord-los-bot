@@ -14,6 +14,7 @@ import { CreateEmojiToRoles1738281600000 } from "./migrations/1738281600000-Crea
 import { CreateLeaderboard1738290000000 } from "./migrations/1738290000000-CreateLeaderboard.js"
 import { AddRatingMatchRounds1738291000000 } from "./migrations/1738291000000-AddRatingMatchRounds.js"
 import { AddRoundHeroesAndFirstPlayer1738291200000 } from "./migrations/1738291200000-AddRoundHeroesAndFirstPlayer.js"
+import { ChangeRatingPrecision1738291300000 } from "./migrations/1738291300000-ChangeRatingPrecision.js"
 
 const leaderboardEntities = [
     LeaderboardGuildConfig,
@@ -42,6 +43,7 @@ const leaderboardEntities = [
                     CreateLeaderboard1738290000000,
                     AddRatingMatchRounds1738291000000,
                     AddRoundHeroesAndFirstPlayer1738291200000,
+                    ChangeRatingPrecision1738291300000,
                 ],
                 migrationsRun: true,
                 synchronize: false,
