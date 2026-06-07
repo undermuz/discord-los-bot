@@ -9,6 +9,7 @@ export class LeaderboardDiscordRoles {
     constructor(private readonly leaderboardService: LeaderboardService) {}
 
     async syncMemberRoles(member: GuildMember): Promise<void> {
+        const me = await member.guild.members.fetchMe()
         const currentRoleIds = member.roles.cache.map((role) => role.id)
         const plan = await this.leaderboardService.buildRoleSyncPlan(
             member.guild.id,
@@ -17,7 +18,7 @@ export class LeaderboardDiscordRoles {
         )
 
         for (const roleId of plan.removeRoleIds) {
-            if (!this.canManageRole(member, roleId)) {
+            if (!this.canManageRole(member, me, roleId)) {
                 continue
             }
 
@@ -29,7 +30,7 @@ export class LeaderboardDiscordRoles {
         }
 
         if (plan.addRoleId) {
-            if (!this.canManageRole(member, plan.addRoleId)) {
+            if (!this.canManageRole(member, me, plan.addRoleId)) {
                 return
             }
 
@@ -60,19 +61,17 @@ export class LeaderboardDiscordRoles {
         }
     }
 
-    private canManageRole(member: GuildMember, roleId: string): boolean {
+    private canManageRole(
+        member: GuildMember,
+        me: GuildMember,
+        roleId: string,
+    ): boolean {
         const role = member.guild.roles.cache.get(roleId)
-        const me = member.guild.members.me
 
         if (!role) {
             this.logger.warn(
                 `Role ${roleId} not found in guild ${member.guild.id}`,
             )
-            return false
-        }
-
-        if (!me) {
-            this.logger.error("Bot member is unavailable in guild cache")
             return false
         }
 
@@ -95,17 +94,32 @@ export class LeaderboardDiscordRoles {
             return false
         }
 
-        if (
-            member.id !== me.id &&
-            member.roles.highest.position >= me.roles.highest.position
-        ) {
-            this.logger.error(
-                `Cannot change roles for ${member.user.tag}: member role is above or equal to the bot role`,
-            )
+        if (!member.manageable) {
+            this.logger.error(this.buildMemberHierarchyHint(member, me))
             return false
         }
 
         return true
+    }
+
+    private buildMemberHierarchyHint(
+        member: GuildMember,
+        me: GuildMember,
+    ): string {
+        const memberHighest = member.roles.highest
+        const botHighest = me.roles.highest
+        const ownerNote =
+            member.user.id === member.guild.ownerId
+                ? ", member is the guild owner"
+                : ""
+
+        return (
+            `Cannot change roles for ${member.user.tag}: ` +
+            `member highest role "${memberHighest.name}" (position ${memberHighest.position}) ` +
+            `is above or equal to bot highest role "${botHighest.name}" (position ${botHighest.position})` +
+            ownerNote +
+            ". Move the bot's highest role above the member's highest role in Server Settings → Roles."
+        )
     }
 
     private buildHierarchyHint(role: Role): string {
