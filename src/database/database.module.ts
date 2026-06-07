@@ -13,6 +13,7 @@ import { RatingTierRole } from "./entities/rating-tier-role.entity.js"
 import { CreateEmojiToRoles1738281600000 } from "./migrations/1738281600000-CreateEmojiToRoles.js"
 import { CreateLeaderboard1738290000000 } from "./migrations/1738290000000-CreateLeaderboard.js"
 import { AddRatingMatchRounds1738291000000 } from "./migrations/1738291000000-AddRatingMatchRounds.js"
+import { AddRoundHeroesAndFirstPlayer1738291200000 } from "./migrations/1738291200000-AddRoundHeroesAndFirstPlayer.js"
 
 const leaderboardEntities = [
     LeaderboardGuildConfig,
@@ -40,6 +41,7 @@ const leaderboardEntities = [
                     CreateEmojiToRoles1738281600000,
                     CreateLeaderboard1738290000000,
                     AddRatingMatchRounds1738291000000,
+                    AddRoundHeroesAndFirstPlayer1738291200000,
                 ],
                 migrationsRun: true,
                 synchronize: false,

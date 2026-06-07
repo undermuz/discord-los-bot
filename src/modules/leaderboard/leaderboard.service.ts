@@ -10,11 +10,11 @@ import {
     PlayerRating,
     PlayerState,
 } from "../../database/entities/player-rating.entity.js"
-import { LeaderboardAggregateService } from "./leaderboard-aggregate.service.js"
-import { LeaderboardConfigService } from "./leaderboard-config.service.js"
-import { LeaderboardRatingService } from "./leaderboard-rating.service.js"
-import { LeaderboardRoleService } from "./leaderboard-role.service.js"
-import { LeaderboardSeriesService } from "./leaderboard-series.service.js"
+import { LeaderboardAggregateService } from "./aggregate.service.js"
+import { LeaderboardConfigService } from "./config.service.js"
+import { LeaderboardRatingService } from "./rating.service.js"
+import { LeaderboardRoleService } from "./role.service.js"
+import { LeaderboardSeriesService } from "./series.service.js"
 import {
     LeaderboardTopEntry,
     MatchFormat,
@@ -23,7 +23,7 @@ import {
     RegisterMatchDto,
     RoleSyncPlan,
     MATCH_FORMATS,
-} from "./leaderboard.types.js"
+} from "./types.js"
 
 @Injectable()
 export class LeaderboardService {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { LeaderboardRatingService } from "./leaderboard-rating.service.js"
-import { MatchFormat } from "./leaderboard.types.js"
+import { LeaderboardRatingService } from "../rating.service.js"
+import { MatchFormat } from "../types.js"
 
 describe("LeaderboardRatingService", () => {
     const service = new LeaderboardRatingService()

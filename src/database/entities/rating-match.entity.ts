@@ -9,7 +9,7 @@ import {
 import {
     MatchFormat,
     MatchStatus,
-} from "../../modules/leaderboard/leaderboard.types.js"
+} from "../../modules/leaderboard/types.js"
 
 @Entity("rating_matches")
 @Index(["guildId", "messageId"])
@@ -93,4 +93,13 @@ export class RatingMatchRound {
 
     @Column()
     mapName: string
+
+    @Column()
+    playerOneHeroName: string
+
+    @Column()
+    playerTwoHeroName: string
+
+    @Column()
+    firstPlayerUserId: string
 }

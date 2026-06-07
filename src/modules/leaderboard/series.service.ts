@@ -1,9 +1,7 @@
 import { Injectable } from "@nestjs/common"
-import {
-    MatchFormat,
-    RegisterMatchRoundDto,
-    SeriesResult,
-} from "./leaderboard.types.js"
+import { isKnownHeroName } from "./heroes.js"
+import { isKnownMapName } from "./maps.js"
+import { MatchFormat, RegisterMatchRoundDto, SeriesResult } from "./types.js"
 
 @Injectable()
 export class LeaderboardSeriesService {
@@ -110,6 +108,40 @@ export class LeaderboardSeriesService {
                 )
             }
 
+            if (!isKnownMapName(round.mapName)) {
+                throw new Error(`Unknown map for round ${round.roundNumber}`)
+            }
+
+            if (!round.playerOneHeroName.trim()) {
+                throw new Error(
+                    `Player 1 hero is required for round ${round.roundNumber}`,
+                )
+            }
+
+            if (!round.playerTwoHeroName.trim()) {
+                throw new Error(
+                    `Player 2 hero is required for round ${round.roundNumber}`,
+                )
+            }
+
+            if (!isKnownHeroName(round.playerOneHeroName)) {
+                throw new Error(
+                    `Unknown hero for player 1 in round ${round.roundNumber}`,
+                )
+            }
+
+            if (!isKnownHeroName(round.playerTwoHeroName)) {
+                throw new Error(
+                    `Unknown hero for player 2 in round ${round.roundNumber}`,
+                )
+            }
+
+            if (!participants.has(round.firstPlayerUserId)) {
+                throw new Error(
+                    `First player must be one of the players in round ${round.roundNumber}`,
+                )
+            }
+
             if (round.winnerUserId === playerOneUserId) {
                 playerOneWins += 1
             } else {
@@ -159,6 +191,9 @@ export class LeaderboardSeriesService {
         winnerUserId: string
         loserUserId: string
         mapName: string
+        playerOneHeroName: string
+        playerTwoHeroName: string
+        firstPlayerUserId: string
     }> {
         return rounds.map((round) => ({
             matchId,
@@ -169,6 +204,9 @@ export class LeaderboardSeriesService {
                     ? playerTwoUserId
                     : playerOneUserId,
             mapName: round.mapName.trim(),
+            playerOneHeroName: round.playerOneHeroName.trim(),
+            playerTwoHeroName: round.playerTwoHeroName.trim(),
+            firstPlayerUserId: round.firstPlayerUserId,
         }))
     }
 }

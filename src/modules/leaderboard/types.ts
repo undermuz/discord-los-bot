@@ -17,6 +17,9 @@ export interface RegisterMatchRoundDto {
     roundNumber: number
     winnerUserId: string
     mapName: string
+    playerOneHeroName: string
+    playerTwoHeroName: string
+    firstPlayerUserId: string
 }
 
 export interface SeriesScore {

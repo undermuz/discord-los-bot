@@ -154,6 +154,7 @@ export function createMockInteraction(overrides: Record<string, unknown> = {}) {
             getChannel: vi.fn((name: string) => optionsMap.get(name)),
         },
         isChatInputCommand: () => true,
+        isAutocomplete: () => false,
         ...overrides,
     }
 

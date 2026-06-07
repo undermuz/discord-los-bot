@@ -5,7 +5,7 @@ import { Repository } from "typeorm"
 import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
 import { PlayerRating } from "../../database/entities/player-rating.entity.js"
 import { LeaderboardService } from "./leaderboard.service.js"
-import { MatchFormat } from "./leaderboard.types.js"
+import { MatchFormat } from "./types.js"
 
 @Injectable()
 export class LeaderboardInactivityService {

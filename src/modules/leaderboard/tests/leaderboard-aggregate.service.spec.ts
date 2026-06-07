@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { createMockRepository } from "../../../test/helpers/typeorm.mock.js"
-import { PlayerRating } from "../../database/entities/player-rating.entity.js"
-import { LeaderboardAggregateService } from "./leaderboard-aggregate.service.js"
-import { MatchFormat } from "./leaderboard.types.js"
+import { createMockRepository } from "../../../../test/helpers/typeorm.mock.js"
+import { PlayerRating } from "../../../database/entities/player-rating.entity.js"
+import { LeaderboardAggregateService } from "../aggregate.service.js"
+import { MatchFormat } from "../types.js"
 
 describe("LeaderboardAggregateService", () => {
     let service: LeaderboardAggregateService

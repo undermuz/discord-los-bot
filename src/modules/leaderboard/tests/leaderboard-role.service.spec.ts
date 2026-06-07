@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { LeaderboardRoleService } from "./leaderboard-role.service.js"
+import { LeaderboardRoleService } from "../role.service.js"
 
 describe("LeaderboardRoleService", () => {
     const service = new LeaderboardRoleService()

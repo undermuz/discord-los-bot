@@ -1,21 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createMockRepository } from "../../../test/helpers/typeorm.mock.js"
+import { createMockRepository } from "../../../../test/helpers/typeorm.mock.js"
 import {
     MatchConfirmation,
     RatingMatch,
     RatingMatchRound,
-} from "../../database/entities/rating-match.entity.js"
+} from "../../../database/entities/rating-match.entity.js"
 import {
     PlayerRating,
     PlayerState,
-} from "../../database/entities/player-rating.entity.js"
-import { LeaderboardAggregateService } from "./leaderboard-aggregate.service.js"
-import { LeaderboardConfigService } from "./leaderboard-config.service.js"
-import { LeaderboardRatingService } from "./leaderboard-rating.service.js"
-import { LeaderboardRoleService } from "./leaderboard-role.service.js"
-import { LeaderboardSeriesService } from "./leaderboard-series.service.js"
-import { LeaderboardService } from "./leaderboard.service.js"
-import { MatchFormat, MatchStatus } from "./leaderboard.types.js"
+} from "../../../database/entities/player-rating.entity.js"
+import { LeaderboardAggregateService } from "../aggregate.service.js"
+import { LeaderboardConfigService } from "../config.service.js"
+import { LeaderboardRatingService } from "../rating.service.js"
+import { LeaderboardRoleService } from "../role.service.js"
+import { LeaderboardSeriesService } from "../series.service.js"
+import { LeaderboardService } from "../leaderboard.service.js"
+import { MatchFormat, MatchStatus } from "../types.js"
 
 describe("LeaderboardService", () => {
     let service: LeaderboardService
@@ -137,7 +137,10 @@ describe("LeaderboardService", () => {
                 {
                     roundNumber: 1,
                     winnerUserId: "player-a",
-                    mapName: "Inferno",
+                    mapName: "McMinnville OR",
+                    playerOneHeroName: "Achilles",
+                    playerTwoHeroName: "Alice",
+                    firstPlayerUserId: "player-a",
                 },
             ],
         })
@@ -163,12 +166,18 @@ describe("LeaderboardService", () => {
                 {
                     roundNumber: 1,
                     winnerUserId: "player-a",
-                    mapName: "Inferno",
+                    mapName: "McMinnville OR",
+                    playerOneHeroName: "Achilles",
+                    playerTwoHeroName: "Alice",
+                    firstPlayerUserId: "player-a",
                 },
                 {
                     roundNumber: 2,
                     winnerUserId: "player-a",
-                    mapName: "Dust2",
+                    mapName: "Point Pleasant",
+                    playerOneHeroName: "Achilles",
+                    playerTwoHeroName: "Alice",
+                    firstPlayerUserId: "player-b",
                 },
             ],
         })
@@ -176,13 +185,13 @@ describe("LeaderboardService", () => {
         expect(savedRounds).toEqual([
             expect.objectContaining({
                 roundNumber: 1,
-                mapName: "Inferno",
+                mapName: "McMinnville OR",
                 winnerUserId: "player-a",
                 loserUserId: "player-b",
             }),
             expect.objectContaining({
                 roundNumber: 2,
-                mapName: "Dust2",
+                mapName: "Point Pleasant",
                 winnerUserId: "player-a",
                 loserUserId: "player-b",
             }),
@@ -245,7 +254,10 @@ describe("LeaderboardService", () => {
                     {
                         roundNumber: 1,
                         winnerUserId: "player-a",
-                        mapName: "Inferno",
+                        mapName: "McMinnville OR",
+                        playerOneHeroName: "Achilles",
+                        playerTwoHeroName: "Alice",
+                        firstPlayerUserId: "player-a",
                     },
                 ],
             }),

@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { DISCORD_USER_ERROR_MESSAGE } from "../../../platforms/discord/discord-interaction.util.js"
+import { DISCORD_USER_ERROR_MESSAGE } from "../../../../platforms/discord/discord-interaction.util.js"
 import {
     createMockChatInputInteraction,
     createMockUser,
-} from "../../../../test/helpers/discord.mock.js"
+} from "../../../../../test/helpers/discord.mock.js"
 import {
     DiscordCommandHandler,
     DiscordService,
-} from "../../../platforms/discord/discord.service.js"
-import { LeaderboardConfigService } from "../leaderboard-config.service.js"
-import { LeaderboardService } from "../leaderboard.service.js"
-import { MatchFormat } from "../leaderboard.types.js"
-import { LeaderboardDiscordCommands } from "./leaderboard.discord.commands.js"
-import { LeaderboardDiscordPresenter } from "./leaderboard.discord.presenter.js"
-import { LeaderboardDiscordRoles } from "./leaderboard.discord.roles.js"
+} from "../../../../platforms/discord/discord.service.js"
+import { LeaderboardConfigService } from "../../config.service.js"
+import { LeaderboardService } from "../../leaderboard.service.js"
+import { MatchFormat } from "../../types.js"
+import { LeaderboardDiscordCommands } from "../commands.js"
+import { LeaderboardDiscordPresenter } from "../presenter.js"
+import { LeaderboardDiscordRoles } from "../roles.js"
 
 describe("LeaderboardDiscordCommands", () => {
     let handlers: Map<string, DiscordCommandHandler>
@@ -41,7 +41,7 @@ describe("LeaderboardDiscordCommands", () => {
                 rounds: [
                     {
                         roundNumber: 1,
-                        mapName: "Inferno",
+                        mapName: "McMinnville OR",
                         winnerUserId: "w1",
                         loserUserId: "l1",
                     },
@@ -65,6 +65,7 @@ describe("LeaderboardDiscordCommands", () => {
                     handlers.set(name, handler)
                 },
             ),
+            registerAutocomplete: vi.fn(),
         } as unknown as DiscordService
 
         const commands = new LeaderboardDiscordCommands(
@@ -91,8 +92,11 @@ describe("LeaderboardDiscordCommands", () => {
                 format: MatchFormat.Bo1,
                 player_1: playerOne,
                 player_2: playerTwo,
-                map_1: "Inferno",
+                map_1: "McMinnville OR",
                 round_1_winner: playerOne,
+                p1_hero_1: "Achilles",
+                p2_hero_1: "Alice",
+                p1_first_rounds: "1",
             },
             {
                 user: playerOne,
@@ -115,7 +119,10 @@ describe("LeaderboardDiscordCommands", () => {
                     {
                         roundNumber: 1,
                         winnerUserId: "w1",
-                        mapName: "Inferno",
+                        mapName: "McMinnville OR",
+                        playerOneHeroName: "Achilles",
+                        playerTwoHeroName: "Alice",
+                        firstPlayerUserId: "w1",
                     },
                 ],
             }),
@@ -135,8 +142,10 @@ describe("LeaderboardDiscordCommands", () => {
                 format: MatchFormat.Bo3,
                 player_1: createMockUser({ id: "u1" }),
                 player_2: createMockUser({ id: "u2" }),
-                map_1: "Inferno",
+                map_1: "McMinnville OR",
                 round_1_winner: createMockUser({ id: "u1" }),
+                p1_hero_1: "Achilles",
+                p2_hero_1: "Alice",
             },
             {
                 channel: {

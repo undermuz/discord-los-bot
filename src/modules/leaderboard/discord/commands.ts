@@ -1,12 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import {
+    AutocompleteInteraction,
     ChatInputCommandInteraction,
     PermissionFlagsBits,
     TextChannel,
 } from "discord.js"
 import { replyWithUserError } from "../../../platforms/discord/discord-interaction.util.js"
 import { DiscordService } from "../../../platforms/discord/discord.service.js"
-import { LeaderboardConfigService } from "../leaderboard-config.service.js"
+import { LeaderboardConfigService } from "../config.service.js"
 import { LeaderboardService } from "../leaderboard.service.js"
 import {
     DEFAULT_TIER_DEFINITIONS,
@@ -15,9 +16,11 @@ import {
     MATCH_FORMATS,
     MatchFormat,
     RegisterMatchRoundDto,
-} from "../leaderboard.types.js"
-import { LeaderboardDiscordRoles } from "./leaderboard.discord.roles.js"
-import { LeaderboardDiscordPresenter } from "./leaderboard.discord.presenter.js"
+} from "../types.js"
+import { getHeroAutocompleteChoices } from "../heroes.js"
+import { getMapAutocompleteChoices } from "../maps.js"
+import { LeaderboardDiscordRoles } from "./roles.js"
+import { LeaderboardDiscordPresenter } from "./presenter.js"
 
 @Injectable()
 export class LeaderboardDiscordCommands implements OnModuleInit {
@@ -33,33 +36,61 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
 
     onModuleInit(): void {
         this.discordService.registerCommand("new-rating-match", (interaction) =>
-            this.handleNewRatingMatch(interaction),
+            this.commandNewRatingMatch(interaction),
+        )
+        this.discordService.registerAutocomplete(
+            "new-rating-match",
+            (interaction) => this.autocompleteNewRatingMatch(interaction),
         )
         this.discordService.registerCommand(
             "leaderboard-setup-formats",
-            (interaction) => this.handleSetupFormats(interaction),
+            (interaction) => this.commandSetupFormats(interaction),
         )
         this.discordService.registerCommand(
             "leaderboard-setup-special-roles",
-            (interaction) => this.handleSetupSpecialRoles(interaction),
+            (interaction) => this.commandSetupSpecialRoles(interaction),
         )
         this.discordService.registerCommand(
             "leaderboard-setup-roles",
-            (interaction) => this.handleSetupTierRole(interaction),
+            (interaction) => this.commandSetupTierRole(interaction),
         )
         this.discordService.registerCommand("leaderboard", (interaction) =>
-            this.handleLeaderboard(interaction),
+            this.commandGetPlayerRating(interaction),
         )
         this.discordService.registerCommand("leaderboard-top", (interaction) =>
-            this.handleLeaderboardTop(interaction),
+            this.commandGetTopPlayers(interaction),
         )
         this.discordService.registerCommand(
             "leaderboard-welcome",
-            (interaction) => this.handleLeaderboardWelcome(interaction),
+            (interaction) => this.commandShowWelcome(interaction),
         )
     }
 
-    private async handleNewRatingMatch(
+    //У slash-команды максимум 25 опций.
+    private async autocompleteNewRatingMatch(
+        interaction: AutocompleteInteraction,
+    ): Promise<void> {
+        const focused = interaction.options.getFocused(true)
+
+        const query = typeof focused.value === "string" ? focused.value : ""
+
+        if (focused.name.startsWith("map_")) {
+            await interaction.respond(getMapAutocompleteChoices(query))
+            return
+        }
+
+        if (
+            focused.name.startsWith("p1_hero_") ||
+            focused.name.startsWith("p2_hero_")
+        ) {
+            await interaction.respond(getHeroAutocompleteChoices(query))
+            return
+        }
+
+        await interaction.respond([])
+    }
+
+    private async commandNewRatingMatch(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         const { guild, channel, options, user } = interaction
@@ -85,7 +116,11 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         }
 
         try {
-            const rounds = this.collectRounds(interaction)
+            const rounds = this.collectRounds(
+                interaction,
+                playerOne.id,
+                playerTwo.id,
+            )
 
             const match = await this.leaderboardService.registerMatch({
                 guildId: guild.id,
@@ -134,7 +169,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         }
     }
 
-    private async handleSetupFormats(
+    private async commandSetupFormats(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         if (!this.isAdmin(interaction)) {
@@ -169,7 +204,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
-    private async handleSetupSpecialRoles(
+    private async commandSetupSpecialRoles(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         if (!this.isAdmin(interaction)) {
@@ -198,7 +233,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
-    private async handleSetupTierRole(
+    private async commandSetupTierRole(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         if (!this.isAdmin(interaction)) {
@@ -232,7 +267,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
-    private async handleLeaderboard(
+    private async commandGetPlayerRating(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         const guildId = interaction.guildId
@@ -271,7 +306,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
-    private async handleLeaderboardTop(
+    private async commandGetTopPlayers(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         const guildId = interaction.guildId
@@ -305,7 +340,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
-    private async handleLeaderboardWelcome(
+    private async commandShowWelcome(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
         if (!interaction.guildId) {
@@ -323,22 +358,43 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
 
     private collectRounds(
         interaction: ChatInputCommandInteraction,
+        playerOneUserId: string,
+        playerTwoUserId: string,
     ): RegisterMatchRoundDto[] {
         const rounds: RegisterMatchRoundDto[] = []
+        const playerOneFirstRounds = this.parsePlayerOneFirstRounds(
+            interaction.options.getString("p1_first_rounds"),
+        )
 
         for (let roundNumber = 1; roundNumber <= 5; roundNumber++) {
             const mapName = interaction.options.getString(`map_${roundNumber}`)
             const winner = interaction.options.getUser(
                 `round_${roundNumber}_winner`,
             )
+            const playerOneHeroName = interaction.options.getString(
+                `p1_hero_${roundNumber}`,
+            )
+            const playerTwoHeroName = interaction.options.getString(
+                `p2_hero_${roundNumber}`,
+            )
 
-            if (!mapName && !winner) {
+            if (
+                !mapName &&
+                !winner &&
+                !playerOneHeroName &&
+                !playerTwoHeroName
+            ) {
                 continue
             }
 
-            if (!mapName || !winner) {
+            if (
+                !mapName ||
+                !winner ||
+                !playerOneHeroName ||
+                !playerTwoHeroName
+            ) {
                 throw new Error(
-                    `Round ${roundNumber} requires both map and winner`,
+                    `Round ${roundNumber} requires map, winner, and both heroes`,
                 )
             }
 
@@ -346,10 +402,33 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 roundNumber,
                 winnerUserId: winner.id,
                 mapName,
+                playerOneHeroName,
+                playerTwoHeroName,
+                firstPlayerUserId: playerOneFirstRounds.has(roundNumber)
+                    ? playerOneUserId
+                    : playerTwoUserId,
             })
         }
 
         return rounds
+    }
+
+    private parsePlayerOneFirstRounds(raw: string | null): Set<number> {
+        if (!raw?.trim()) {
+            return new Set()
+        }
+
+        return new Set(
+            raw
+                .split(",")
+                .map((value) => Number.parseInt(value.trim(), 10))
+                .filter(
+                    (roundNumber) =>
+                        Number.isInteger(roundNumber) &&
+                        roundNumber >= 1 &&
+                        roundNumber <= 5,
+                ),
+        )
     }
 
     private isAdmin(interaction: ChatInputCommandInteraction): boolean {

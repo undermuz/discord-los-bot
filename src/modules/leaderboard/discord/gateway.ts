@@ -6,11 +6,11 @@ import {
     User,
 } from "discord.js"
 import { DiscordService } from "../../../platforms/discord/discord.service.js"
-import { LeaderboardConfigService } from "../leaderboard-config.service.js"
+import { LeaderboardConfigService } from "../config.service.js"
 import { LeaderboardService } from "../leaderboard.service.js"
-import { MatchStatus } from "../leaderboard.types.js"
-import { LeaderboardDiscordRoles } from "./leaderboard.discord.roles.js"
-import { LeaderboardDiscordPresenter } from "./leaderboard.discord.presenter.js"
+import { MatchStatus } from "../types.js"
+import { LeaderboardDiscordRoles } from "./roles.js"
+import { LeaderboardDiscordPresenter } from "./presenter.js"
 
 @Injectable()
 export class LeaderboardDiscordGateway implements OnModuleInit {

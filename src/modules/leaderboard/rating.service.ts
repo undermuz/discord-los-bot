@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common"
-import { MatchFormat, SeriesScore } from "./leaderboard.types.js"
+import { MatchFormat, SeriesScore } from "./types.js"
 
 export interface RatingDelta {
     winnerDelta: number

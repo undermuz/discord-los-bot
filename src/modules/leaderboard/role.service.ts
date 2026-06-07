@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
 import { RatingTierRole } from "../../database/entities/rating-tier-role.entity.js"
-import { PlayerRoleState, RoleSyncPlan } from "./leaderboard.types.js"
+import { PlayerRoleState, RoleSyncPlan } from "./types.js"
 
 @Injectable()
 export class LeaderboardRoleService {

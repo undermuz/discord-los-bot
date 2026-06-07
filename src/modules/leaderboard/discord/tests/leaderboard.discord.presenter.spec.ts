@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { MatchStatus } from "../leaderboard.types.js"
-import { LeaderboardDiscordPresenter } from "./leaderboard.discord.presenter.js"
+import { MatchStatus } from "../../types.js"
+import { LeaderboardDiscordPresenter } from "../presenter.js"
 
 describe("LeaderboardDiscordPresenter", () => {
     const presenter = new LeaderboardDiscordPresenter({} as never)
@@ -24,15 +24,20 @@ describe("LeaderboardDiscordPresenter", () => {
             rounds: [
                 {
                     roundNumber: 1,
-                    mapName: "Inferno",
+                    mapName: "McMinnville OR",
                     winnerUserId: "w1",
                     loserUserId: "l1",
+                    playerOneHeroName: "Achilles",
+                    playerTwoHeroName: "Alice",
+                    firstPlayerUserId: "w1",
                 },
             ],
         } as never)
 
         expect(content).toContain("1:0")
-        expect(content).toContain("1. Inferno")
+        expect(content).toContain("1. McMinnville OR")
+        expect(content).toContain("Achilles vs Alice")
+        expect(content).toContain("Первый ход: <@w1>")
         expect(content).toContain("Ожидают подтверждения ✅")
         expect(content).toContain("<@w1>")
         expect(content).toContain("<@l1>")

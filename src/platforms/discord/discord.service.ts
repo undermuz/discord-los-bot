@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config"
 import {
+    AutocompleteInteraction,
     ChatInputCommandInteraction,
     Client,
     GatewayIntentBits,
@@ -19,12 +20,20 @@ export type DiscordCommandHandler = (
     interaction: ChatInputCommandInteraction,
 ) => Promise<void>
 
+export type DiscordAutocompleteHandler = (
+    interaction: AutocompleteInteraction,
+) => Promise<void>
+
 @Injectable()
 export class DiscordService
     implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy
 {
     private readonly logger = new Logger(DiscordService.name)
     private readonly commandHandlers = new Map<string, DiscordCommandHandler>()
+    private readonly autocompleteHandlers = new Map<
+        string,
+        DiscordAutocompleteHandler
+    >()
     readonly client: Client
 
     constructor(private readonly configService: ConfigService) {
@@ -42,6 +51,13 @@ export class DiscordService
 
     registerCommand(name: string, handler: DiscordCommandHandler): void {
         this.commandHandlers.set(name, handler)
+    }
+
+    registerAutocomplete(
+        name: string,
+        handler: DiscordAutocompleteHandler,
+    ): void {
+        this.autocompleteHandlers.set(name, handler)
     }
 
     onModuleInit(): void {
@@ -78,6 +94,11 @@ export class DiscordService
     }
 
     private async handleInteraction(interaction: Interaction): Promise<void> {
+        if (interaction.isAutocomplete()) {
+            await this.handleAutocomplete(interaction)
+            return
+        }
+
         if (!interaction.isChatInputCommand()) {
             return
         }
@@ -96,6 +117,29 @@ export class DiscordService
                 logger: this.logger,
                 context: `Command:${interaction.commandName}`,
             })
+        }
+    }
+
+    private async handleAutocomplete(
+        interaction: AutocompleteInteraction,
+    ): Promise<void> {
+        const handler = this.autocompleteHandlers.get(interaction.commandName)
+
+        if (!handler) {
+            return
+        }
+
+        try {
+            await handler(interaction)
+        } catch (error) {
+            this.logger.error(
+                `Autocomplete failed for ${interaction.commandName}`,
+                error instanceof Error ? error.stack : String(error),
+            )
+
+            if (!interaction.responded) {
+                await interaction.respond([])
+            }
         }
     }
 }

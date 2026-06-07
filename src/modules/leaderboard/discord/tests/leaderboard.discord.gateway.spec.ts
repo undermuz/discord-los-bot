@@ -5,14 +5,14 @@ import {
     createMockReaction,
     createMockUser,
     emitAsync,
-} from "../../../../test/helpers/discord.mock.js"
-import { DiscordService } from "../../../platforms/discord/discord.service.js"
-import { LeaderboardConfigService } from "../leaderboard-config.service.js"
-import { LeaderboardService } from "../leaderboard.service.js"
-import { MatchStatus } from "../leaderboard.types.js"
-import { LeaderboardDiscordGateway } from "./leaderboard.discord.gateway.js"
-import { LeaderboardDiscordPresenter } from "./leaderboard.discord.presenter.js"
-import { LeaderboardDiscordRoles } from "./leaderboard.discord.roles.js"
+} from "../../../../../test/helpers/discord.mock.js"
+import { DiscordService } from "../../../../platforms/discord/discord.service.js"
+import { LeaderboardConfigService } from "../../config.service.js"
+import { LeaderboardService } from "../../leaderboard.service.js"
+import { MatchStatus } from "../../types.js"
+import { LeaderboardDiscordGateway } from "../gateway.js"
+import { LeaderboardDiscordPresenter } from "../presenter.js"
+import { LeaderboardDiscordRoles } from "../roles.js"
 
 describe("LeaderboardDiscordGateway", () => {
     let gateway: LeaderboardDiscordGateway

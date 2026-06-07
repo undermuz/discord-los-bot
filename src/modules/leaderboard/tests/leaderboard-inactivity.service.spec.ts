@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
-import { PlayerRating } from "../../database/entities/player-rating.entity.js"
-import { createMockRepository } from "../../../test/helpers/typeorm.mock.js"
-import { LeaderboardInactivityService } from "./leaderboard-inactivity.service.js"
-import { LeaderboardService } from "./leaderboard.service.js"
-import { MatchFormat } from "./leaderboard.types.js"
+import { LeaderboardGuildConfig } from "../../../database/entities/leaderboard-guild-config.entity.js"
+import { PlayerRating } from "../../../database/entities/player-rating.entity.js"
+import { createMockRepository } from "../../../../test/helpers/typeorm.mock.js"
+import { LeaderboardInactivityService } from "../inactivity.service.js"
+import { LeaderboardService } from "../leaderboard.service.js"
+import { MatchFormat } from "../types.js"
 
 describe("LeaderboardInactivityService", () => {
     let service: LeaderboardInactivityService

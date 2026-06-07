@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common"
 import { Message, PartialMessage } from "discord.js"
 import { LeaderboardService } from "../leaderboard.service.js"
-import { MatchStatus } from "../leaderboard.types.js"
-import type { LeaderboardTopEntry } from "../leaderboard.types.js"
+import { MatchStatus } from "../types.js"
+import type { LeaderboardTopEntry } from "../types.js"
 
 export type MatchDisplayData = Awaited<
     ReturnType<LeaderboardService["getMatchDisplayData"]>
@@ -44,6 +44,7 @@ export class LeaderboardDiscordPresenter {
         for (const round of rounds) {
             lines.push(
                 `${round.roundNumber}. ${round.mapName} — <@${round.winnerUserId}>`,
+                `   Герои: ${round.playerOneHeroName} vs ${round.playerTwoHeroName} | Первый ход: <@${round.firstPlayerUserId}>`,
             )
         }
 
@@ -123,7 +124,7 @@ export class LeaderboardDiscordPresenter {
             "",
             "**Для участников**",
             "",
-            "• `/new-rating-match` — зарегистрировать серию: `player_1`, `player_2`, формат, для каждого раунда — `map_N` и `round_N_winner`. Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
+            "• `/new-rating-match` — зарегистрировать серию: `player_1`, `player_2`, формат, для каждого раунда — `map_N`, `round_N_winner`, `p1_hero_N`, `p2_hero_N`. Кто ходил первым: `p1_first_rounds` (например `1,3` — раунды, где первым ходил player_1). Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
             "• `/leaderboard [player]` - посмотреть рейтинг себя или другого игрока.",
             "• `/leaderboard-top [size]` - топ игроков (10, 50 или 100) по основному рейтингу.",
             "",

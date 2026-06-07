@@ -145,7 +145,8 @@ const commands = [
                 option
                     .setName(`map_${i}`)
                     .setDescription(`Map name for round ${i}`)
-                    .setRequired(false),
+                    .setRequired(i === 1)
+                    .setAutocomplete(true),
             )
             newRatingMatchCmd.addUserOption((option) =>
                 option
@@ -153,7 +154,30 @@ const commands = [
                     .setDescription(`Winner of round ${i}`)
                     .setRequired(false),
             )
+            newRatingMatchCmd.addStringOption((option) =>
+                option
+                    .setName(`p1_hero_${i}`)
+                    .setDescription(`Player 1 hero for round ${i}`)
+                    .setRequired(false)
+                    .setAutocomplete(true),
+            )
+            newRatingMatchCmd.addStringOption((option) =>
+                option
+                    .setName(`p2_hero_${i}`)
+                    .setDescription(`Player 2 hero for round ${i}`)
+                    .setRequired(false)
+                    .setAutocomplete(true),
+            )
         }
+
+        newRatingMatchCmd.addStringOption((option) =>
+            option
+                .setName("p1_first_rounds")
+                .setDescription(
+                    "Rounds where player 1 moved first (e.g. 1,3). Others: player 2",
+                )
+                .setRequired(false),
+        )
 
         return newRatingMatchCmd
     })(),

@@ -7,7 +7,7 @@ import {
     DEFAULT_TIER_DEFINITIONS,
     MATCH_FORMATS,
     MatchFormat,
-} from "./leaderboard.types.js"
+} from "./types.js"
 
 @Injectable()
 export class LeaderboardConfigService {

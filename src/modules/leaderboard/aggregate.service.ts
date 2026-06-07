@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm"
 import { Repository } from "typeorm"
 import { PlayerRating } from "../../database/entities/player-rating.entity.js"
 import { LeaderboardGuildConfig } from "../../database/entities/leaderboard-guild-config.entity.js"
-import { MatchFormat } from "./leaderboard.types.js"
+import { MatchFormat } from "./types.js"
 
 @Injectable()
 export class LeaderboardAggregateService {
