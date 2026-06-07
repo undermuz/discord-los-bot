@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { Message, PartialMessage } from "discord.js"
+import { LeaderboardGuildConfig } from "../../../database/entities/leaderboard-guild-config.entity.js"
+import { RatingTierRole } from "../../../database/entities/rating-tier-role.entity.js"
 import { LeaderboardService } from "../leaderboard.service.js"
 import { MatchStatus } from "../types.js"
 import type { LeaderboardTopEntry } from "../types.js"
@@ -111,6 +113,40 @@ export class LeaderboardDiscordPresenter {
         return [`**Топ-${size} рейтинга**`, "", ...lines].join("\n")
     }
 
+    formatGuildConfigContent(
+        config: LeaderboardGuildConfig,
+        tiers: RatingTierRole[],
+    ): string {
+        const formatRole = (roleId: string | null): string =>
+            roleId ? `<@&${roleId}>` : "не задана"
+
+        const tierLines = tiers.map((tier) => {
+            const range =
+                tier.maxRating === null
+                    ? `${tier.minRating}+`
+                    : `${tier.minRating}–${tier.maxRating}`
+
+            return `• ${tier.name} (${range}): ${formatRole(tier.roleId)}`
+        })
+
+        return [
+            "**Настройки рейтинга сервера**",
+            "",
+            `**Избранные форматы:** ${config.favoriteFormats.join(", ") || "не заданы"}`,
+            `**Эмодзи верификации:** ${config.verifyEmoji}`,
+            `**Стартовый рейтинг:** ${config.initialRating}`,
+            `**Порог калибровки:** ${config.calibrationMatchThreshold} матч.`,
+            `**Неактивность:** ${config.inactivityDays} дн.`,
+            "",
+            "**Специальные роли**",
+            `• Калибровка: ${formatRole(config.calibrationRoleId)}`,
+            `• Заморозка: ${formatRole(config.freezeRoleId)}`,
+            "",
+            "**Тиры**",
+            ...tierLines,
+        ].join("\n")
+    }
+
     formatWelcomeContent(): string {
         return [
             "**Рейтинговый бот — руководство**",
@@ -127,6 +163,7 @@ export class LeaderboardDiscordPresenter {
             "• `/new-rating-match` — зарегистрировать серию: `player_1`, `player_2`, формат, для каждого раунда — `map_N`, `round_N_winner`, `p1_hero_N`, `p2_hero_N`. Кто ходил первым: `p1_first_rounds` (например `1,3` — раунды, где первым ходил player_1). Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
             "• `/leaderboard [player]` - посмотреть рейтинг себя или другого игрока.",
             "• `/leaderboard-top [size]` - топ игроков (10, 50 или 100) по основному рейтингу.",
+            "• `/leaderboard-config` - текущие настройки рейтинга сервера.",
             "",
             "**Правила**",
             "",

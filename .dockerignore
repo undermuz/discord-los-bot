@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+data
+.env
+.git
+.cursor
+v1
+**/*.spec.ts
+test

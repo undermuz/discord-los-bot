@@ -8,16 +8,25 @@ export class AddRoundHeroesAndFirstPlayer1738291200000 implements MigrationInter
             new TableColumn({
                 name: "playerOneHeroName",
                 type: "varchar",
+                default: "''",
             }),
             new TableColumn({
                 name: "playerTwoHeroName",
                 type: "varchar",
+                default: "''",
             }),
             new TableColumn({
                 name: "firstPlayerUserId",
                 type: "varchar",
+                default: "''",
             }),
         ])
+
+        await queryRunner.query(`
+            UPDATE rating_match_rounds
+            SET firstPlayerUserId = winnerUserId
+            WHERE firstPlayerUserId = ''
+        `)
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

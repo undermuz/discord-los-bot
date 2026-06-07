@@ -270,6 +270,9 @@ const commands = [
     new SlashCommandBuilder()
         .setName("leaderboard-welcome")
         .setDescription("How to set up and use the rating system"),
+    new SlashCommandBuilder()
+        .setName("leaderboard-config")
+        .setDescription("Show current guild leaderboard settings"),
 ].map((command) => command.toJSON())
 
 const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN)

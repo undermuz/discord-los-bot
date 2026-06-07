@@ -64,6 +64,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             "leaderboard-welcome",
             (interaction) => this.commandShowWelcome(interaction),
         )
+        this.discordService.registerCommand(
+            "leaderboard-config",
+            (interaction) => this.commandShowGuildConfig(interaction),
+        )
     }
 
     //У slash-команды максимум 25 опций.
@@ -353,6 +357,28 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
 
         await interaction.reply({
             content: this.presenter.formatWelcomeContent(),
+        })
+    }
+
+    private async commandShowGuildConfig(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const config = await this.configService.getOrCreateGuildConfig(guildId)
+        const tiers = await this.configService.getTiers(guildId)
+
+        await interaction.reply({
+            content: this.presenter.formatGuildConfigContent(config, tiers),
+            ephemeral: true,
         })
     }
 

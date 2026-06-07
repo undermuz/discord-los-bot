@@ -18,6 +18,7 @@ import { LeaderboardDiscordRoles } from "../roles.js"
 describe("LeaderboardDiscordCommands", () => {
     let handlers: Map<string, DiscordCommandHandler>
     let leaderboardService: LeaderboardService
+    let configService: LeaderboardConfigService
 
     beforeEach(() => {
         handlers = new Map()
@@ -59,6 +60,29 @@ describe("LeaderboardDiscordCommands", () => {
             ]),
         } as unknown as LeaderboardService
 
+        configService = {
+            getOrCreateGuildConfig: vi.fn().mockResolvedValue({
+                guildId: "g1",
+                favoriteFormats: ["Bo1", "Bo3"],
+                verifyEmoji: "✅",
+                calibrationRoleId: "role-cal",
+                freezeRoleId: "role-freeze",
+                calibrationMatchThreshold: 10,
+                inactivityDays: 60,
+                initialRating: 1000,
+            }),
+            getTiers: vi.fn().mockResolvedValue([
+                {
+                    id: 1,
+                    guildId: "g1",
+                    name: "Ангел",
+                    minRating: 700,
+                    maxRating: 750,
+                    roleId: "role-angel",
+                },
+            ]),
+        } as unknown as LeaderboardConfigService
+
         const discordService = {
             registerCommand: vi.fn(
                 (name: string, handler: DiscordCommandHandler) => {
@@ -71,7 +95,7 @@ describe("LeaderboardDiscordCommands", () => {
         const commands = new LeaderboardDiscordCommands(
             discordService,
             leaderboardService,
-            {} as LeaderboardConfigService,
+            configService,
             { syncMembers: vi.fn() } as unknown as LeaderboardDiscordRoles,
             new LeaderboardDiscordPresenter(leaderboardService),
         )
@@ -179,6 +203,27 @@ describe("LeaderboardDiscordCommands", () => {
         expect(interaction.reply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.stringContaining("**Топ-10 рейтинга**"),
+            }),
+        )
+    })
+
+    it("shows guild config", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-config",
+            {},
+            { guild: { id: "g1" } },
+        )
+
+        await handlers.get("leaderboard-config")!(interaction as never)
+
+        expect(configService.getOrCreateGuildConfig).toHaveBeenCalledWith("g1")
+        expect(configService.getTiers).toHaveBeenCalledWith("g1")
+        expect(interaction.reply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining(
+                    "**Настройки рейтинга сервера**",
+                ),
+                ephemeral: true,
             }),
         )
     })

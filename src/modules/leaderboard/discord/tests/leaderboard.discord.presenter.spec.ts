@@ -125,5 +125,46 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("/leaderboard-setup-formats")
         expect(content).toContain("/new-rating-match")
         expect(content).toContain("/leaderboard-top")
+        expect(content).toContain("/leaderboard-config")
+    })
+
+    it("formats guild config", () => {
+        const content = presenter.formatGuildConfigContent(
+            {
+                guildId: "g1",
+                favoriteFormats: ["Bo1", "Bo3"],
+                verifyEmoji: "✅",
+                calibrationRoleId: "role-cal",
+                freezeRoleId: null,
+                calibrationMatchThreshold: 10,
+                inactivityDays: 60,
+                initialRating: 1000,
+            },
+            [
+                {
+                    id: 1,
+                    guildId: "g1",
+                    name: "Ангел",
+                    minRating: 700,
+                    maxRating: 750,
+                    roleId: "role-angel",
+                },
+                {
+                    id: 2,
+                    guildId: "g1",
+                    name: "Гудини",
+                    minRating: 1300,
+                    maxRating: null,
+                    roleId: null,
+                },
+            ],
+        )
+
+        expect(content).toContain("**Настройки рейтинга сервера**")
+        expect(content).toContain("Bo1, Bo3")
+        expect(content).toContain("<@&role-cal>")
+        expect(content).toContain("Заморозка: не задана")
+        expect(content).toContain("Ангел (700–750): <@&role-angel>")
+        expect(content).toContain("Гудини (1300+): не задана")
     })
 })
