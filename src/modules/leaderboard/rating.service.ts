@@ -39,13 +39,13 @@ export function computeK1(consecutiveWinsBeforeMatch: number): number {
 
 export function computeK2(
     isCalibrating: boolean,
-    hadExistingRating: boolean,
+    hasCompletedCalibrationBefore: boolean,
 ): number {
     if (!isCalibrating) {
         return 1
     }
 
-    return hadExistingRating
+    return hasCompletedCalibrationBefore
         ? CALIBRATION_K2_EXISTING_PLAYER
         : CALIBRATION_K2_NEW_PLAYER
 }

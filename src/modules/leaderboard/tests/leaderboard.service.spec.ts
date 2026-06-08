@@ -427,4 +427,77 @@ describe("LeaderboardService", () => {
             expect.objectContaining({ isFrozen: false }),
         )
     })
+
+    it("freezes inactive player into re-calibration without resetting rating", async () => {
+        playerRatingRepository.find.mockResolvedValue([
+            {
+                id: 1,
+                guildId: "g1",
+                discordUserId: "u1",
+                format: MatchFormat.Bo1,
+                rating: 1234.56,
+                verifiedMatchCount: 20,
+                calibrationCompleted: true,
+                lastPlayedAt: new Date("2024-01-01"),
+            },
+        ])
+        playerRatingRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+        playerStateRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            isFrozen: false,
+        })
+        playerStateRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+
+        await service.freezeInactivePlayer("g1", "u1")
+
+        expect(playerStateRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({ isFrozen: true }),
+        )
+        expect(playerRatingRepository.save).toHaveBeenCalledWith([
+            expect.objectContaining({
+                rating: 1234.56,
+                verifiedMatchCount: 0,
+                calibrationCompleted: true,
+            }),
+        ])
+    })
+
+    it("resets calibration history when requested", async () => {
+        playerRatingRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            format: MatchFormat.Bo1,
+            rating: 1200,
+            verifiedMatchCount: 12,
+            calibrationCompleted: true,
+            lastPlayedAt: new Date("2025-01-01"),
+        })
+        playerRatingRepository.save.mockImplementation((entity) =>
+            Promise.resolve(entity),
+        )
+        playerStateRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            isFrozen: false,
+        })
+
+        await service.resetPlayerStats("g1", "u1", true)
+
+        expect(playerRatingRepository.save).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    verifiedMatchCount: 0,
+                    calibrationCompleted: false,
+                }),
+            ]),
+        )
+    })
 })

@@ -301,6 +301,14 @@ const commands = [
                 .setName("player")
                 .setDescription("Player to reset")
                 .setRequired(true),
+        )
+        .addBooleanOption((option) =>
+            option
+                .setName("reset_calibration")
+                .setDescription(
+                    "Also reset per-format calibration history (K2 returns to 3)",
+                )
+                .setRequired(false),
         ),
 ].map((command) => command.toJSON())
 

@@ -311,7 +311,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 `Основной рейтинг: ${formatRating(summary.state.mainRating)}`,
                 `Матчей: ${summary.state.totalVerifiedMatches}`,
                 summary.state.isFrozen ? "Статус: Заморозка" : "",
-                "K1 — при победе, K2 — калибровка",
+                "K1 — при победе, K2 — калибровка (3 — впервые, 2 — повторно)",
                 "",
                 ...formatLines,
             ]
@@ -456,9 +456,15 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         }
 
         const target = interaction.options.getUser("player", true)
+        const resetCalibration =
+            interaction.options.getBoolean("reset_calibration") === true
 
         try {
-            await this.leaderboardService.resetPlayerStats(guildId, target.id)
+            await this.leaderboardService.resetPlayerStats(
+                guildId,
+                target.id,
+                resetCalibration,
+            )
 
             await this.rolesAdapter.syncMembers(
                 guildId,
@@ -466,8 +472,12 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 (userId) => interaction.guild!.members.fetch(userId),
             )
 
+            const calibrationNote = resetCalibration
+                ? ", calibration history cleared"
+                : ""
+
             await interaction.reply({
-                content: `Statistics reset for ${target.toString()}: verified match counts cleared, last played dates cleared, freeze removed.`,
+                content: `Statistics reset for ${target.toString()}: verified match counts cleared, last played dates cleared, freeze removed${calibrationNote}.`,
                 ephemeral: true,
             })
         } catch (error) {

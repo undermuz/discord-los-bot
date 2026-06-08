@@ -66,7 +66,6 @@ describe("LeaderboardInactivityService", () => {
         expect(leaderboardService.freezeInactivePlayer).toHaveBeenCalledWith(
             "g1",
             "u1",
-            1000,
         )
     })
 })

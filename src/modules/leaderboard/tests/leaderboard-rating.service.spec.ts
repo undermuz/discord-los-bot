@@ -21,6 +21,7 @@ describe("rating coefficients", () => {
 
     it("applies calibration K2 multipliers", () => {
         expect(computeK2(false, false)).toBe(1)
+        expect(computeK2(false, true)).toBe(1)
         expect(computeK2(true, false)).toBe(3)
         expect(computeK2(true, true)).toBe(2)
     })

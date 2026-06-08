@@ -18,6 +18,9 @@ export class PlayerRating {
     @Column({ type: "real", default: 1000 })
     rating: number
 
+    @Column({ default: false })
+    calibrationCompleted: boolean
+
     @Column({ default: 0 })
     verifiedMatchCount: number
 

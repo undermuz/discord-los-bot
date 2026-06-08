@@ -69,7 +69,6 @@ export class LeaderboardInactivityService {
                 await this.leaderboardService.freezeInactivePlayer(
                     config.guildId,
                     player.discordUserId,
-                    config.initialRating,
                 )
             }
         }

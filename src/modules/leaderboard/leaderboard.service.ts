@@ -175,37 +175,34 @@ export class LeaderboardService {
             match.guildId,
         )
 
-        const winnerRatingExisted = await this.playerRatingRepository.findOne({
-            where: {
-                guildId: match.guildId,
-                discordUserId: match.winnerUserId,
-                format: match.format,
-            },
-        })
-        const loserRatingExisted = await this.playerRatingRepository.findOne({
-            where: {
-                guildId: match.guildId,
-                discordUserId: match.loserUserId,
-                format: match.format,
-            },
-        })
-
-        const winnerRating = winnerRatingExisted
-            ? winnerRatingExisted
-            : await this.createPlayerRating(
-                  match.guildId,
-                  match.winnerUserId,
-                  match.format,
-                  config.initialRating,
-              )
-        const loserRating = loserRatingExisted
-            ? loserRatingExisted
-            : await this.createPlayerRating(
-                  match.guildId,
-                  match.loserUserId,
-                  match.format,
-                  config.initialRating,
-              )
+        const winnerRating =
+            (await this.playerRatingRepository.findOne({
+                where: {
+                    guildId: match.guildId,
+                    discordUserId: match.winnerUserId,
+                    format: match.format,
+                },
+            })) ??
+            (await this.createPlayerRating(
+                match.guildId,
+                match.winnerUserId,
+                match.format,
+                config.initialRating,
+            ))
+        const loserRating =
+            (await this.playerRatingRepository.findOne({
+                where: {
+                    guildId: match.guildId,
+                    discordUserId: match.loserUserId,
+                    format: match.format,
+                },
+            })) ??
+            (await this.createPlayerRating(
+                match.guildId,
+                match.loserUserId,
+                match.format,
+                config.initialRating,
+            ))
 
         const winnerWinStreak = await this.getConsecutiveWins(
             match.guildId,
@@ -227,7 +224,7 @@ export class LeaderboardService {
                     k2: computeK2(
                         winnerRating.verifiedMatchCount <
                             config.calibrationMatchThreshold,
-                        winnerRatingExisted !== null,
+                        winnerRating.calibrationCompleted,
                     ),
                 },
                 loser: {
@@ -235,7 +232,7 @@ export class LeaderboardService {
                     k2: computeK2(
                         loserRating.verifiedMatchCount <
                             config.calibrationMatchThreshold,
-                        loserRatingExisted !== null,
+                        loserRating.calibrationCompleted,
                     ),
                 },
             },
@@ -255,6 +252,14 @@ export class LeaderboardService {
         loserRating.verifiedMatchCount += 1
         winnerRating.lastPlayedAt = now
         loserRating.lastPlayedAt = now
+        this.markCalibrationCompletedIfNeeded(
+            winnerRating,
+            config.calibrationMatchThreshold,
+        )
+        this.markCalibrationCompletedIfNeeded(
+            loserRating,
+            config.calibrationMatchThreshold,
+        )
 
         await this.playerRatingRepository.save([winnerRating, loserRating])
 
@@ -363,7 +368,6 @@ export class LeaderboardService {
     async freezeInactivePlayer(
         guildId: string,
         discordUserId: string,
-        initialRating: number,
     ): Promise<void> {
         const state = await this.getOrCreatePlayerState(guildId, discordUserId)
         state.isFrozen = true
@@ -373,10 +377,8 @@ export class LeaderboardService {
             where: { guildId, discordUserId },
         })
 
-        const roundedInitialRating = roundRating(initialRating)
-
         for (const rating of ratings) {
-            rating.rating = roundedInitialRating
+            rating.verifiedMatchCount = 0
         }
 
         if (ratings.length > 0) {
@@ -418,6 +420,7 @@ export class LeaderboardService {
     async resetPlayerStats(
         guildId: string,
         discordUserId: string,
+        resetCalibrationCompleted = false,
     ): Promise<void> {
         const config = await this.configService.requireGuildConfig(guildId)
         const ratings = await Promise.all(
@@ -434,6 +437,10 @@ export class LeaderboardService {
         for (const playerRating of ratings) {
             playerRating.verifiedMatchCount = 0
             playerRating.lastPlayedAt = null
+
+            if (resetCalibrationCompleted) {
+                playerRating.calibrationCompleted = false
+            }
         }
 
         await this.playerRatingRepository.save(ratings)
@@ -479,7 +486,7 @@ export class LeaderboardService {
                     k1: computeK1(consecutiveWins),
                     k2: computeK2(
                         verifiedMatchCount < config.calibrationMatchThreshold,
-                        playerRating !== null,
+                        playerRating?.calibrationCompleted ?? false,
                     ),
                 }
             }),
@@ -593,6 +600,15 @@ export class LeaderboardService {
                 rating: roundRating(initialRating),
             }),
         )
+    }
+
+    private markCalibrationCompletedIfNeeded(
+        playerRating: PlayerRating,
+        calibrationMatchThreshold: number,
+    ): void {
+        if (playerRating.verifiedMatchCount >= calibrationMatchThreshold) {
+            playerRating.calibrationCompleted = true
+        }
     }
 
     private async getConsecutiveWins(
