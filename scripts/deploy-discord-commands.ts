@@ -310,6 +310,18 @@ const commands = [
                 )
                 .setRequired(false),
         ),
+    new SlashCommandBuilder()
+        .setName("leaderboard-freeze-player")
+        .setDescription(
+            "Force-freeze a player: freeze role, re-calibration, rating preserved",
+        )
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addUserOption((option) =>
+            option
+                .setName("player")
+                .setDescription("Player to freeze")
+                .setRequired(true),
+        ),
 ].map((command) => command.toJSON())
 
 const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN)

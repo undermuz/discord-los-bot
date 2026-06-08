@@ -77,6 +77,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             "leaderboard-reset-stats",
             (interaction) => this.commandResetPlayerStats(interaction),
         )
+        this.discordService.registerCommand(
+            "leaderboard-freeze-player",
+            (interaction) => this.commandFreezePlayer(interaction),
+        )
     }
 
     //У slash-команды максимум 25 опций.
@@ -485,6 +489,54 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 error,
                 logger: this.logger,
                 context: "leaderboard-reset-stats",
+            })
+        }
+    }
+
+    private async commandFreezePlayer(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        if (!this.isAdmin(interaction)) {
+            await interaction.reply({
+                content: "Administrator permission required",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const target = interaction.options.getUser("player", true)
+
+        try {
+            await this.leaderboardService.freezeInactivePlayer(
+                guildId,
+                target.id,
+            )
+
+            await this.rolesAdapter.syncMembers(
+                guildId,
+                [target.id],
+                (userId) => interaction.guild!.members.fetch(userId),
+            )
+
+            await interaction.reply({
+                content: `Player ${target.toString()} frozen: rating preserved, match counts reset for re-calibration.`,
+                ephemeral: true,
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "leaderboard-freeze-player",
             })
         }
     }
