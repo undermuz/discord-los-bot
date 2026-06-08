@@ -24,6 +24,7 @@ import {
     LeaderboardTopEntry,
     MatchFormat,
     MatchStatus,
+    PlayerLeaderboardSummary,
     PlayerRoleState,
     RegisterMatchDto,
     RoleSyncPlan,
@@ -449,22 +450,42 @@ export class LeaderboardService {
         return [match.winnerUserId, match.loserUserId]
     }
 
-    async getPlayerLeaderboardSummary(guildId: string, discordUserId: string) {
+    async getPlayerLeaderboardSummary(
+        guildId: string,
+        discordUserId: string,
+    ): Promise<PlayerLeaderboardSummary> {
         const config = await this.configService.requireGuildConfig(guildId)
         const state = await this.getPlayerRoleState(guildId, discordUserId)
         const formatRatings = await Promise.all(
-            MATCH_FORMATS.map(async (format) => ({
-                format,
-                rating: await this.aggregateService.getFormatRating(
+            MATCH_FORMATS.map(async (format) => {
+                const playerRating = await this.playerRatingRepository.findOne({
+                    where: { guildId, discordUserId, format },
+                })
+                const verifiedMatchCount = playerRating?.verifiedMatchCount ?? 0
+                const consecutiveWins = await this.getConsecutiveWins(
                     guildId,
                     discordUserId,
                     format,
-                    config.initialRating,
-                ),
-            })),
+                )
+
+                return {
+                    format,
+                    rating: await this.aggregateService.getFormatRating(
+                        guildId,
+                        discordUserId,
+                        format,
+                        config.initialRating,
+                    ),
+                    k1: computeK1(consecutiveWins),
+                    k2: computeK2(
+                        verifiedMatchCount < config.calibrationMatchThreshold,
+                        playerRating !== null,
+                    ),
+                }
+            }),
         )
 
-        return { config, state, formatRatings }
+        return { state, formatRatings }
     }
 
     async getTopPlayers(

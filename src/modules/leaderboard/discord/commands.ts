@@ -301,7 +301,8 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             )
 
         const formatLines = summary.formatRatings.map(
-            ({ format, rating }) => `${format}: ${formatRating(rating)}`,
+            ({ format, rating, k1, k2 }) =>
+                `${format}: ${formatRating(rating)} | K1: ${formatRating(k1)} | K2: ${formatRating(k2)}`,
         )
 
         await interaction.reply({
@@ -310,6 +311,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 `Основной рейтинг: ${formatRating(summary.state.mainRating)}`,
                 `Матчей: ${summary.state.totalVerifiedMatches}`,
                 summary.state.isFrozen ? "Статус: Заморозка" : "",
+                "K1 — при победе, K2 — калибровка",
                 "",
                 ...formatLines,
             ]

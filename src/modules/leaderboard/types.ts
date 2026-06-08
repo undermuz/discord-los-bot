@@ -60,6 +60,18 @@ export interface PlayerRoleState {
     mainRating: number
 }
 
+export interface PlayerFormatRatingSummary {
+    format: MatchFormat
+    rating: number
+    k1: number
+    k2: number
+}
+
+export interface PlayerLeaderboardSummary {
+    state: PlayerRoleState
+    formatRatings: PlayerFormatRatingSummary[]
+}
+
 export const LEADERBOARD_TOP_SIZES = [10, 50, 100] as const
 export type LeaderboardTopSize = (typeof LEADERBOARD_TOP_SIZES)[number]
 export const DEFAULT_LEADERBOARD_TOP_SIZE: LeaderboardTopSize = 10
