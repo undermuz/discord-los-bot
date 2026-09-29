@@ -39,9 +39,15 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         this.discordService.registerCommand("new-rating-match", (interaction) =>
             this.commandNewRatingMatch(interaction),
         )
+        this.discordService.registerCommand("um-1x1", (interaction) =>
+            this.commandUm1x1(interaction),
+        )
         this.discordService.registerAutocomplete(
             "new-rating-match",
-            (interaction) => this.autocompleteNewRatingMatch(interaction),
+            (interaction) => this.autocompleteMatchFields(interaction),
+        )
+        this.discordService.registerAutocomplete("um-1x1", (interaction) =>
+            this.autocompleteMatchFields(interaction),
         )
         this.discordService.registerCommand(
             "leaderboard-setup-formats",
@@ -84,21 +90,21 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
     }
 
     //У slash-команды максимум 25 опций.
-    private async autocompleteNewRatingMatch(
+    private async autocompleteMatchFields(
         interaction: AutocompleteInteraction,
     ): Promise<void> {
         const focused = interaction.options.getFocused(true)
 
         const query = typeof focused.value === "string" ? focused.value : ""
 
-        if (focused.name.startsWith("map_")) {
+        if (focused.name.startsWith("map")) {
             await interaction.respond(getMapAutocompleteChoices(query))
             return
         }
 
         if (
-            focused.name.startsWith("p1_hero_") ||
-            focused.name.startsWith("p2_hero_")
+            focused.name.startsWith("p1_hero") ||
+            focused.name.startsWith("p2_hero")
         ) {
             await interaction.respond(getHeroAutocompleteChoices(query))
             return
@@ -110,7 +116,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
     private async commandNewRatingMatch(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
-        const { guild, channel, options, user } = interaction
+        const { guild, channel, options } = interaction
 
         if (!guild || !channel?.isTextBased()) {
             await interaction.reply({
@@ -139,14 +145,86 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 playerTwo.id,
             )
 
-            const match = await this.leaderboardService.registerMatch({
-                guildId: guild.id,
-                channelId: channel.id,
-                registeredByUserId: user.id,
+            await this.postRegisteredMatch(interaction, {
                 format,
                 playerOneUserId: playerOne.id,
                 playerTwoUserId: playerTwo.id,
                 rounds,
+                context: "new-rating-match",
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "new-rating-match",
+            })
+        }
+    }
+
+    private async commandUm1x1(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        const { guild, channel, options } = interaction
+
+        if (!guild || !channel?.isTextBased()) {
+            await interaction.reply({
+                content: "This command can only be used in a text channel",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const playerOne = options.getUser("p1", true)
+        const playerTwo = options.getUser("p2", true)
+        const winner = options.getUser("winner", true)
+        const mapName = options.getString("map", true)
+        const playerOneHeroName = options.getString("p1_hero", true)
+        const playerTwoHeroName = options.getString("p2_hero", true)
+
+        await this.postRegisteredMatch(interaction, {
+            format: MatchFormat.Bo1,
+            playerOneUserId: playerOne.id,
+            playerTwoUserId: playerTwo.id,
+            rounds: [
+                {
+                    roundNumber: 1,
+                    winnerUserId: winner.id,
+                    mapName,
+                    playerOneHeroName,
+                    playerTwoHeroName,
+                    // Same default as /new-rating-match without p1_first_rounds.
+                    firstPlayerUserId: playerTwo.id,
+                },
+            ],
+            context: "um-1x1",
+        })
+    }
+
+    private async postRegisteredMatch(
+        interaction: ChatInputCommandInteraction,
+        input: {
+            format: MatchFormat
+            playerOneUserId: string
+            playerTwoUserId: string
+            rounds: RegisterMatchRoundDto[]
+            context: string
+        },
+    ): Promise<void> {
+        const { guild, channel, user } = interaction
+
+        if (!guild || !channel?.isTextBased()) {
+            return
+        }
+
+        try {
+            const match = await this.leaderboardService.registerMatch({
+                guildId: guild.id,
+                channelId: channel.id,
+                registeredByUserId: user.id,
+                format: input.format,
+                playerOneUserId: input.playerOneUserId,
+                playerTwoUserId: input.playerTwoUserId,
+                rounds: input.rounds,
             })
 
             const display = await this.leaderboardService.getMatchDisplayData(
@@ -181,7 +259,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             await replyWithUserError(interaction, {
                 error,
                 logger: this.logger,
-                context: "new-rating-match",
+                context: input.context,
             })
         }
     }

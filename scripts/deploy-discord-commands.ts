@@ -5,6 +5,11 @@ import {
     SlashCommandBuilder,
     PermissionFlagsBits,
 } from "discord.js"
+import {
+    DEFAULT_TIER_DEFINITIONS,
+    LEADERBOARD_TOP_SIZES,
+    MATCH_FORMATS,
+} from "../src/modules/leaderboard/types"
 
 const { DISCORD_TOKEN, DISCORD_APP_ID, APP_ID } = process.env
 const discordAppId = DISCORD_APP_ID ?? APP_ID
@@ -121,10 +126,10 @@ const commands = [
                     .setDescription("Match format")
                     .setRequired(true)
                     .addChoices(
-                        { name: "Bo1", value: "Bo1" },
-                        { name: "Bo2", value: "Bo2" },
-                        { name: "Bo3", value: "Bo3" },
-                        { name: "Bo5", value: "Bo5" },
+                        MATCH_FORMATS.map((format) => ({
+                            name: format,
+                            value: format,
+                        })),
                     ),
             )
             .addUserOption((option) =>
@@ -181,13 +186,55 @@ const commands = [
 
         return newRatingMatchCmd
     })(),
+    new SlashCommandBuilder()
+        .setName("um-1x1")
+        .setDescription("Register a Bo1 rating match")
+        .addUserOption((option) =>
+            option
+                .setName("p1")
+                .setDescription("First player")
+                .setRequired(true),
+        )
+        .addUserOption((option) =>
+            option
+                .setName("p2")
+                .setDescription("Second player")
+                .setRequired(true),
+        )
+        .addUserOption((option) =>
+            option
+                .setName("winner")
+                .setDescription("Match winner")
+                .setRequired(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName("map")
+                .setDescription("Map name")
+                .setRequired(true)
+                .setAutocomplete(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName("p1_hero")
+                .setDescription("Player 1 hero")
+                .setRequired(true)
+                .setAutocomplete(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName("p2_hero")
+                .setDescription("Player 2 hero")
+                .setRequired(true)
+                .setAutocomplete(true),
+        ),
     (() => {
         const setupFormats = new SlashCommandBuilder()
             .setName("leaderboard-setup-formats")
             .setDescription("Configure favorite match formats for main rating")
             .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
-        for (const format of ["Bo1", "Bo2", "Bo3", "Bo5"]) {
+        for (const format of MATCH_FORMATS) {
             setupFormats.addBooleanOption((option) =>
                 option
                     .setName(format.toLowerCase())
@@ -224,18 +271,10 @@ const commands = [
                 .setDescription("Tier name")
                 .setRequired(true)
                 .addChoices(
-                    { name: "Ангел", value: "Ангел" },
-                    { name: "Баффи", value: "Баффи" },
-                    { name: "Плащ", value: "Плащ" },
-                    { name: "Кинжал", value: "Кинжал" },
-                    { name: "Дэдпул", value: "Дэдпул" },
-                    { name: "Человек-паук", value: "Человек-паук" },
-                    { name: "Тесла", value: "Тесла" },
-                    { name: "Ахиллес", value: "Ахиллес" },
-                    { name: "Бигфут", value: "Бигфут" },
-                    { name: "Крылан", value: "Крылан" },
-                    { name: "Джинн", value: "Джинн" },
-                    { name: "Гудини", value: "Гудини" },
+                    DEFAULT_TIER_DEFINITIONS.map((tier) => ({
+                        name: tier.name,
+                        value: tier.name,
+                    })),
                 ),
         )
         .addRoleOption((option) =>
@@ -262,9 +301,10 @@ const commands = [
                 .setDescription("Number of players to show")
                 .setRequired(false)
                 .addChoices(
-                    { name: "10", value: 10 },
-                    { name: "50", value: 50 },
-                    { name: "100", value: 100 },
+                    LEADERBOARD_TOP_SIZES.map((size) => ({
+                        name: String(size),
+                        value: size,
+                    })),
                 ),
         ),
     new SlashCommandBuilder()

@@ -155,6 +155,58 @@ describe("LeaderboardDiscordCommands", () => {
         expect(interaction.reply).toHaveBeenCalled()
     })
 
+    it("registers a Bo1 match from um-1x1", async () => {
+        const playerOne = createMockUser({ id: "w1" })
+        const playerTwo = createMockUser({ id: "l1" })
+        const send = vi.fn().mockResolvedValue({
+            id: "msg-1",
+            url: "https://discord.com/message/1",
+            react: vi.fn(),
+        })
+        const interaction = createMockChatInputInteraction(
+            "um-1x1",
+            {
+                p1: playerOne,
+                p2: playerTwo,
+                winner: playerOne,
+                map: "McMinnville OR",
+                p1_hero: "Achilles",
+                p2_hero: "Alice",
+            },
+            {
+                user: playerOne,
+                channel: {
+                    id: "c1",
+                    isTextBased: () => true,
+                    send,
+                },
+                guild: { id: "g1" },
+            },
+        )
+
+        await handlers.get("um-1x1")!(interaction as never)
+
+        expect(leaderboardService.registerMatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                format: MatchFormat.Bo1,
+                playerOneUserId: "w1",
+                playerTwoUserId: "l1",
+                rounds: [
+                    {
+                        roundNumber: 1,
+                        winnerUserId: "w1",
+                        mapName: "McMinnville OR",
+                        playerOneHeroName: "Achilles",
+                        playerTwoHeroName: "Alice",
+                        firstPlayerUserId: "l1",
+                    },
+                ],
+            }),
+        )
+        expect(send).toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalled()
+    })
+
     it("rejects invalid series via service error", async () => {
         vi.mocked(leaderboardService.registerMatch).mockRejectedValue(
             new Error("Series score must reach 2 wins for Bo3"),

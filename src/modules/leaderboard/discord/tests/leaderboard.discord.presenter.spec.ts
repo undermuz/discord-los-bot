@@ -124,6 +124,7 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("**Настройка (администратор)**")
         expect(content).toContain("/leaderboard-setup-formats")
         expect(content).toContain("/new-rating-match")
+        expect(content).toContain("/um-1x1")
         expect(content).toContain("/leaderboard-top")
         expect(content).toContain("/leaderboard-config")
     })
