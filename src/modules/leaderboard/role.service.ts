@@ -92,10 +92,18 @@ export class LeaderboardRoleService {
             }
         }
 
-        if (state.mainRating < 700) {
+        const lowestTierRating = tiers.reduce<number | null>(
+            (lowest, tier) =>
+                lowest === null
+                    ? tier.minRating
+                    : Math.min(lowest, tier.minRating),
+            null,
+        )
+
+        if (lowestTierRating !== null && state.mainRating < lowestTierRating) {
             return {
                 roleId: null,
-                reason: `rating ${formatRating(state.mainRating)} is below 700, no rank role`,
+                reason: `rating ${formatRating(state.mainRating)} is below ${lowestTierRating}, no rank role`,
             }
         }
 

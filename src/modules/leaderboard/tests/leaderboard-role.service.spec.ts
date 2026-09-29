@@ -71,7 +71,7 @@ describe("LeaderboardRoleService", () => {
         expect(plan.addReason).toContain('tier "Крылан"')
     })
 
-    it("assigns no rank role below 700", () => {
+    it("assigns no rank role below the lowest tier", () => {
         const plan = service.buildRoleSyncPlan(
             config,
             tiers,
@@ -80,7 +80,7 @@ describe("LeaderboardRoleService", () => {
         )
 
         expect(plan.addRoleId).toBeNull()
-        expect(plan.unchangedReason).toContain("rating 650 is below 700")
+        expect(plan.unchangedReason).toContain("650.00 is below 1150")
     })
 
     it("keeps role unchanged when target role is already assigned", () => {

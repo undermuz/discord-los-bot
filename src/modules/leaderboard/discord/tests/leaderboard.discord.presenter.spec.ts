@@ -127,6 +127,8 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("/um-1x1")
         expect(content).toContain("/leaderboard-top")
         expect(content).toContain("/leaderboard-config")
+        expect(content).toContain("**4**")
+        expect(content).toContain("**90**")
     })
 
     it("formats guild config", () => {
@@ -165,7 +167,7 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("Bo1, Bo3")
         expect(content).toContain("<@&role-cal>")
         expect(content).toContain("Заморозка: не задана")
-        expect(content).toContain("Ангел (700–750): <@&role-angel>")
+        expect(content).toContain("Ангел (700–749): <@&role-angel>")
         expect(content).toContain("Гудини (1300+): не задана")
     })
 })

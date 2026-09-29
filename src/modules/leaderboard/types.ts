@@ -83,17 +83,26 @@ export interface LeaderboardTopEntry {
     isFrozen: boolean
 }
 
+const TIER_STEP = 100
+const TIER_MIN_RATING = 0
+const OPEN_TIER_MIN_RATING = 2000
+
+const closedTierCount = (OPEN_TIER_MIN_RATING - TIER_MIN_RATING) / TIER_STEP
+
 export const DEFAULT_TIER_DEFINITIONS = [
-    { name: "Ангел", minRating: 700, maxRating: 750 },
-    { name: "Баффи", minRating: 750, maxRating: 800 },
-    { name: "Плащ", minRating: 800, maxRating: 850 },
-    { name: "Кинжал", minRating: 850, maxRating: 900 },
-    { name: "Дэдпул", minRating: 900, maxRating: 950 },
-    { name: "Человек-паук", minRating: 950, maxRating: 1000 },
-    { name: "Тесла", minRating: 1000, maxRating: 1050 },
-    { name: "Ахиллес", minRating: 1050, maxRating: 1100 },
-    { name: "Бигфут", minRating: 1100, maxRating: 1150 },
-    { name: "Крылан", minRating: 1150, maxRating: 1250 },
-    { name: "Джинн", minRating: 1250, maxRating: 1300 },
-    { name: "Гудини", minRating: 1300, maxRating: null },
-] as const
+    ...Array.from({ length: closedTierCount }, (_, index) => {
+        const minRating = TIER_MIN_RATING + index * TIER_STEP
+        const maxRating = minRating + TIER_STEP
+
+        return {
+            name: `${minRating}-${maxRating - 1}`,
+            minRating,
+            maxRating,
+        }
+    }),
+    {
+        name: `${OPEN_TIER_MIN_RATING}+`,
+        minRating: OPEN_TIER_MIN_RATING,
+        maxRating: null,
+    },
+]

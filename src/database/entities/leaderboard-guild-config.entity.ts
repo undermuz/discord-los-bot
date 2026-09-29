@@ -17,10 +17,10 @@ export class LeaderboardGuildConfig {
     @Column({ type: "varchar", nullable: true })
     freezeRoleId: string | null
 
-    @Column({ default: 10 })
+    @Column({ default: 4 })
     calibrationMatchThreshold: number
 
-    @Column({ default: 60 })
+    @Column({ default: 90 })
     inactivityDays: number
 
     @Column({ type: "real", default: 1000 })
