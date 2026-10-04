@@ -20,6 +20,7 @@ import { ReplaceRatingTiers1738291500000 } from "./migrations/1738291500000-Repl
 import { OpenTopRatingTier1738291600000 } from "./migrations/1738291600000-OpenTopRatingTier.js"
 import { UpdateCalibrationAndFreeze1738291700000 } from "./migrations/1738291700000-UpdateCalibrationAndFreeze.js"
 import { ImportEmojiToRolesFromDb21738291800000 } from "./migrations/1738291800000-ImportEmojiToRolesFromDb2.js"
+import { SplitFormatAndSeries1738291900000 } from "./migrations/1738291900000-SplitFormatAndSeries.js"
 
 const leaderboardEntities = [
     LeaderboardGuildConfig,
@@ -54,6 +55,7 @@ const leaderboardEntities = [
                     OpenTopRatingTier1738291600000,
                     UpdateCalibrationAndFreeze1738291700000,
                     ImportEmojiToRolesFromDb21738291800000,
+                    SplitFormatAndSeries1738291900000,
                 ],
                 migrationsRun: true,
                 synchronize: false,

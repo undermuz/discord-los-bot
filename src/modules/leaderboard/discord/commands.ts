@@ -12,10 +12,15 @@ import { LeaderboardService } from "../leaderboard.service.js"
 import {
     DEFAULT_TIER_DEFINITIONS,
     DEFAULT_LEADERBOARD_TOP_SIZE,
+    DUEL_MATCH_FORMATS,
     LEADERBOARD_TOP_SIZES,
+    formatRequiresHeroes,
     MATCH_FORMATS,
     MatchFormat,
     RegisterMatchRoundDto,
+    SERIES_LENGTHS,
+    SeriesLength,
+    TWO_VS_TWO_SERIES_LENGTHS,
 } from "../types.js"
 import { getHeroAutocompleteChoices } from "../heroes.js"
 import { getMapAutocompleteChoices } from "../maps.js"
@@ -42,11 +47,17 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         this.discordService.registerCommand("um-1x1", (interaction) =>
             this.commandUm1x1(interaction),
         )
+        this.discordService.registerCommand("new-2x2", (interaction) =>
+            this.commandNew2x2(interaction),
+        )
         this.discordService.registerAutocomplete(
             "new-rating-match",
             (interaction) => this.autocompleteMatchFields(interaction),
         )
         this.discordService.registerAutocomplete("um-1x1", (interaction) =>
+            this.autocompleteMatchFields(interaction),
+        )
+        this.discordService.registerAutocomplete("new-2x2", (interaction) =>
             this.autocompleteMatchFields(interaction),
         )
         this.discordService.registerCommand(
@@ -102,10 +113,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             return
         }
 
-        if (
-            focused.name.startsWith("p1_hero") ||
-            focused.name.startsWith("p2_hero")
-        ) {
+        if (focused.name.includes("hero")) {
             await interaction.respond(getHeroAutocompleteChoices(query))
             return
         }
@@ -127,10 +135,14 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         }
 
         const format = options.getString("format", true) as MatchFormat
+        const seriesLength = options.getString("series", true) as SeriesLength
         const playerOne = options.getUser("player_1", true)
         const playerTwo = options.getUser("player_2", true)
 
-        if (!MATCH_FORMATS.includes(format)) {
+        if (
+            !DUEL_MATCH_FORMATS.includes(format) ||
+            !SERIES_LENGTHS.includes(seriesLength)
+        ) {
             await interaction.reply({
                 content: "Invalid match format",
                 ephemeral: true,
@@ -141,14 +153,19 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         try {
             const rounds = this.collectRounds(
                 interaction,
+                format,
                 playerOne.id,
                 playerTwo.id,
+                5,
             )
 
             await this.postRegisteredMatch(interaction, {
                 format,
+                seriesLength,
                 playerOneUserId: playerOne.id,
+                playerOnePartnerUserId: null,
                 playerTwoUserId: playerTwo.id,
+                playerTwoPartnerUserId: null,
                 rounds,
                 context: "new-rating-match",
             })
@@ -178,20 +195,23 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         const playerTwo = options.getUser("p2", true)
         const winner = options.getUser("winner", true)
         const mapName = options.getString("map", true)
-        const playerOneHeroName = options.getString("p1_hero", true)
-        const playerTwoHeroName = options.getString("p2_hero", true)
 
         await this.postRegisteredMatch(interaction, {
-            format: MatchFormat.Bo1,
+            format: MatchFormat.LosEnduranceAutumn2026,
+            seriesLength: SeriesLength.Bo1,
             playerOneUserId: playerOne.id,
+            playerOnePartnerUserId: null,
             playerTwoUserId: playerTwo.id,
+            playerTwoPartnerUserId: null,
             rounds: [
                 {
                     roundNumber: 1,
                     winnerUserId: winner.id,
                     mapName,
-                    playerOneHeroName,
-                    playerTwoHeroName,
+                    playerOneHeroName: "",
+                    playerTwoHeroName: "",
+                    playerOnePartnerHeroName: "",
+                    playerTwoPartnerHeroName: "",
                     // Same default as /new-rating-match without p1_first_rounds.
                     firstPlayerUserId: playerTwo.id,
                 },
@@ -200,12 +220,68 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
+    private async commandNew2x2(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        const { guild, channel, options } = interaction
+
+        if (!guild || !channel?.isTextBased()) {
+            await interaction.reply({
+                content: "This command can only be used in a text channel",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const seriesLength = options.getString("series", true) as SeriesLength
+        const teamOnePlayer = options.getUser("team1_p1", true)
+        const teamOnePartner = options.getUser("team1_p2", true)
+        const teamTwoPlayer = options.getUser("team2_p1", true)
+        const teamTwoPartner = options.getUser("team2_p2", true)
+
+        if (!TWO_VS_TWO_SERIES_LENGTHS.includes(seriesLength)) {
+            await interaction.reply({
+                content: "Invalid match series",
+                ephemeral: true,
+            })
+            return
+        }
+
+        try {
+            const rounds = this.collectTeamRounds(
+                interaction,
+                teamOnePlayer.id,
+                teamTwoPlayer.id,
+            )
+
+            await this.postRegisteredMatch(interaction, {
+                format: MatchFormat.TwoVsTwo,
+                seriesLength,
+                playerOneUserId: teamOnePlayer.id,
+                playerOnePartnerUserId: teamOnePartner.id,
+                playerTwoUserId: teamTwoPlayer.id,
+                playerTwoPartnerUserId: teamTwoPartner.id,
+                rounds,
+                context: "new-2x2",
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "new-2x2",
+            })
+        }
+    }
+
     private async postRegisteredMatch(
         interaction: ChatInputCommandInteraction,
         input: {
             format: MatchFormat
+            seriesLength: SeriesLength
             playerOneUserId: string
+            playerOnePartnerUserId: string | null
             playerTwoUserId: string
+            playerTwoPartnerUserId: string | null
             rounds: RegisterMatchRoundDto[]
             context: string
         },
@@ -222,8 +298,11 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 channelId: channel.id,
                 registeredByUserId: user.id,
                 format: input.format,
+                seriesLength: input.seriesLength,
                 playerOneUserId: input.playerOneUserId,
+                playerOnePartnerUserId: input.playerOnePartnerUserId,
                 playerTwoUserId: input.playerTwoUserId,
+                playerTwoPartnerUserId: input.playerTwoPartnerUserId,
                 rounds: input.rounds,
             })
 
@@ -249,7 +328,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
 
                 await this.rolesAdapter.syncMembers(
                     guild.id,
-                    [finalized.winnerUserId, finalized.loserUserId],
+                    this.leaderboardService.getRequiredParticipants(finalized),
                     (userId) => guild.members.fetch(userId),
                 )
 
@@ -643,15 +722,18 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
 
     private collectRounds(
         interaction: ChatInputCommandInteraction,
+        format: MatchFormat,
         playerOneUserId: string,
         playerTwoUserId: string,
+        maxRounds: number,
     ): RegisterMatchRoundDto[] {
         const rounds: RegisterMatchRoundDto[] = []
         const playerOneFirstRounds = this.parsePlayerOneFirstRounds(
             interaction.options.getString("p1_first_rounds"),
+            maxRounds,
         )
 
-        for (let roundNumber = 1; roundNumber <= 5; roundNumber++) {
+        for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber++) {
             const mapName = interaction.options.getString(`map_${roundNumber}`)
             const winner = interaction.options.getUser(
                 `round_${roundNumber}_winner`,
@@ -672,14 +754,17 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 continue
             }
 
+            const heroesRequired = formatRequiresHeroes(format)
+
             if (
                 !mapName ||
                 !winner ||
-                !playerOneHeroName ||
-                !playerTwoHeroName
+                (heroesRequired && (!playerOneHeroName || !playerTwoHeroName))
             ) {
                 throw new Error(
-                    `Round ${roundNumber} requires map, winner, and both heroes`,
+                    heroesRequired
+                        ? `Round ${roundNumber} requires map, winner, and both heroes`
+                        : `Round ${roundNumber} requires map and winner`,
                 )
             }
 
@@ -687,8 +772,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 roundNumber,
                 winnerUserId: winner.id,
                 mapName,
-                playerOneHeroName,
-                playerTwoHeroName,
+                playerOneHeroName: playerOneHeroName ?? "",
+                playerTwoHeroName: playerTwoHeroName ?? "",
+                playerOnePartnerHeroName: "",
+                playerTwoPartnerHeroName: "",
                 firstPlayerUserId: playerOneFirstRounds.has(roundNumber)
                     ? playerOneUserId
                     : playerTwoUserId,
@@ -698,7 +785,80 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         return rounds
     }
 
-    private parsePlayerOneFirstRounds(raw: string | null): Set<number> {
+    private collectTeamRounds(
+        interaction: ChatInputCommandInteraction,
+        teamOnePrimaryUserId: string,
+        teamTwoPrimaryUserId: string,
+    ): RegisterMatchRoundDto[] {
+        const rounds: RegisterMatchRoundDto[] = []
+        const teamOneFirstRounds = this.parsePlayerOneFirstRounds(
+            interaction.options.getString("team1_first_rounds"),
+            3,
+        )
+
+        for (let roundNumber = 1; roundNumber <= 3; roundNumber++) {
+            const mapName = interaction.options.getString(`map_${roundNumber}`)
+            const winner = interaction.options.getUser(
+                `round_${roundNumber}_winner`,
+            )
+            const teamOneHero = interaction.options.getString(
+                `t1p1_hero_${roundNumber}`,
+            )
+            const teamOnePartnerHero = interaction.options.getString(
+                `t1p2_hero_${roundNumber}`,
+            )
+            const teamTwoHero = interaction.options.getString(
+                `t2p1_hero_${roundNumber}`,
+            )
+            const teamTwoPartnerHero = interaction.options.getString(
+                `t2p2_hero_${roundNumber}`,
+            )
+
+            if (
+                !mapName &&
+                !winner &&
+                !teamOneHero &&
+                !teamOnePartnerHero &&
+                !teamTwoHero &&
+                !teamTwoPartnerHero
+            ) {
+                continue
+            }
+
+            if (
+                !mapName ||
+                !winner ||
+                !teamOneHero ||
+                !teamOnePartnerHero ||
+                !teamTwoHero ||
+                !teamTwoPartnerHero
+            ) {
+                throw new Error(
+                    `Round ${roundNumber} requires map, winner, and a hero for each player`,
+                )
+            }
+
+            rounds.push({
+                roundNumber,
+                winnerUserId: winner.id,
+                mapName,
+                playerOneHeroName: teamOneHero,
+                playerOnePartnerHeroName: teamOnePartnerHero,
+                playerTwoHeroName: teamTwoHero,
+                playerTwoPartnerHeroName: teamTwoPartnerHero,
+                firstPlayerUserId: teamOneFirstRounds.has(roundNumber)
+                    ? teamOnePrimaryUserId
+                    : teamTwoPrimaryUserId,
+            })
+        }
+
+        return rounds
+    }
+
+    private parsePlayerOneFirstRounds(
+        raw: string | null,
+        maxRounds: number,
+    ): Set<number> {
         if (!raw?.trim()) {
             return new Set()
         }
@@ -711,7 +871,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                     (roundNumber) =>
                         Number.isInteger(roundNumber) &&
                         roundNumber >= 1 &&
-                        roundNumber <= 5,
+                        roundNumber <= maxRounds,
                 ),
         )
     }

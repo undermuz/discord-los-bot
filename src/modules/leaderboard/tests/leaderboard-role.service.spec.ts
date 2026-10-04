@@ -6,7 +6,7 @@ describe("LeaderboardRoleService", () => {
 
     const config = {
         guildId: "g1",
-        favoriteFormats: ["Bo1"],
+        favoriteFormats: ["1x1"],
         verifyEmoji: "✅",
         calibrationRoleId: "cal",
         freezeRoleId: "freeze",

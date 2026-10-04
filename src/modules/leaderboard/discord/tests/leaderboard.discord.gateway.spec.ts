@@ -26,6 +26,20 @@ describe("LeaderboardDiscordGateway", () => {
         leaderboardService = {
             findMatchByMessage: vi.fn(),
             confirmMatch: vi.fn(),
+            getRequiredParticipants: vi.fn(
+                (match: {
+                    winnerUserId: string
+                    loserUserId: string
+                    winnerPartnerUserId?: string | null
+                    loserPartnerUserId?: string | null
+                }) =>
+                    [
+                        match.winnerUserId,
+                        match.winnerPartnerUserId,
+                        match.loserUserId,
+                        match.loserPartnerUserId,
+                    ].filter((userId): userId is string => Boolean(userId)),
+            ),
         } as unknown as LeaderboardService
 
         const configService = {

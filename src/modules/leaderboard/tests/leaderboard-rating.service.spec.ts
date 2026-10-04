@@ -5,7 +5,7 @@ import {
     computeRatingDelta,
     LeaderboardRatingService,
 } from "../rating.service.js"
-import { MatchFormat } from "../types.js"
+import { SeriesLength } from "../types.js"
 
 const defaultCoeffs = {
     winner: { k1: 1, k2: 1 },
@@ -49,7 +49,7 @@ describe("LeaderboardRatingService", () => {
 
     it("applies Bo1 formula", () => {
         const result = service.applyResult(
-            MatchFormat.Bo1,
+            SeriesLength.Bo1,
             1000,
             1000,
             { winnerScore: 1, loserScore: 0 },
@@ -61,7 +61,7 @@ describe("LeaderboardRatingService", () => {
 
     it("keeps rating unchanged for Bo2 1:1", () => {
         const result = service.applyResult(
-            MatchFormat.Bo2,
+            SeriesLength.Bo2,
             1000,
             1000,
             { winnerScore: 1, loserScore: 1 },
@@ -73,7 +73,7 @@ describe("LeaderboardRatingService", () => {
 
     it("applies Bo2 2:0 with doubled base", () => {
         const result = service.applyResult(
-            MatchFormat.Bo2,
+            SeriesLength.Bo2,
             1000,
             1000,
             { winnerScore: 2, loserScore: 0 },
@@ -85,7 +85,7 @@ describe("LeaderboardRatingService", () => {
 
     it("applies Bo3 2:0 with base 20", () => {
         const result = service.applyResult(
-            MatchFormat.Bo3,
+            SeriesLength.Bo3,
             1000,
             1000,
             { winnerScore: 2, loserScore: 0 },
@@ -97,7 +97,7 @@ describe("LeaderboardRatingService", () => {
 
     it("applies Bo3 2:1 with base 10", () => {
         const result = service.applyResult(
-            MatchFormat.Bo3,
+            SeriesLength.Bo3,
             1000,
             1000,
             { winnerScore: 2, loserScore: 1 },
@@ -109,7 +109,7 @@ describe("LeaderboardRatingService", () => {
 
     it("keeps Bo5 stub +1/-1", () => {
         const result = service.applyResult(
-            MatchFormat.Bo5,
+            SeriesLength.Bo5,
             1000,
             1000,
             { winnerScore: 3, loserScore: 2 },

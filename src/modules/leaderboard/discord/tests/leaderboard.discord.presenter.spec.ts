@@ -43,6 +43,41 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("<@l1>")
     })
 
+    it("omits heroes when the format has none", () => {
+        const content = presenter.formatMatchContent({
+            match: {
+                id: 1,
+                format: "LosEnduranceAutumn2026",
+                seriesLength: "Bo1",
+                winnerUserId: "w1",
+                loserUserId: "l1",
+                winnerScore: 1,
+                loserScore: 0,
+                status: MatchStatus.Pending,
+            },
+            config: { verifyEmoji: "✅" },
+            winnerRating: 1000,
+            loserRating: 990,
+            confirmations: [],
+            pendingUsers: ["w1", "l1"],
+            rounds: [
+                {
+                    roundNumber: 1,
+                    mapName: "McMinnville OR",
+                    winnerUserId: "w1",
+                    loserUserId: "l1",
+                    playerOneHeroName: "",
+                    playerTwoHeroName: "",
+                    firstPlayerUserId: "l1",
+                },
+            ],
+        } as never)
+
+        expect(content).toContain("LosEnduranceAutumn2026")
+        expect(content).toContain("Первый ход: <@l1>")
+        expect(content).not.toContain("Герои:")
+    })
+
     it("shows confirmed and pending participants", () => {
         const content = presenter.formatMatchContent({
             match: {
@@ -135,7 +170,7 @@ describe("LeaderboardDiscordPresenter", () => {
         const content = presenter.formatGuildConfigContent(
             {
                 guildId: "g1",
-                favoriteFormats: ["Bo1", "Bo3"],
+                favoriteFormats: ["1x1", "2x2"],
                 verifyEmoji: "✅",
                 calibrationRoleId: "role-cal",
                 freezeRoleId: null,
@@ -164,7 +199,7 @@ describe("LeaderboardDiscordPresenter", () => {
         )
 
         expect(content).toContain("**Настройки рейтинга сервера**")
-        expect(content).toContain("Bo1, Bo3")
+        expect(content).toContain("1x1, 2x2")
         expect(content).toContain("<@&role-cal>")
         expect(content).toContain("Заморозка: не задана")
         expect(content).toContain("Ангел (700–749): <@&role-angel>")

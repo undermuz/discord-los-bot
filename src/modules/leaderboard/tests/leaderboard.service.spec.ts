@@ -15,7 +15,7 @@ import { LeaderboardRatingService } from "../rating.service.js"
 import { LeaderboardRoleService } from "../role.service.js"
 import { LeaderboardSeriesService } from "../series.service.js"
 import { LeaderboardService } from "../leaderboard.service.js"
-import { MatchFormat, MatchStatus } from "../types.js"
+import { MatchFormat, MatchStatus, SeriesLength } from "../types.js"
 
 describe("LeaderboardService", () => {
     let service: LeaderboardService
@@ -101,7 +101,7 @@ describe("LeaderboardService", () => {
         const configService = {
             requireGuildConfig: vi.fn().mockResolvedValue({
                 guildId: "g1",
-                favoriteFormats: ["Bo1"],
+                favoriteFormats: ["1x1"],
                 verifyEmoji: "✅",
                 calibrationRoleId: "cal",
                 freezeRoleId: "freeze",
@@ -130,7 +130,10 @@ describe("LeaderboardService", () => {
             guildId: "g1",
             channelId: "c1",
             registeredByUserId: "player-a",
-            format: MatchFormat.Bo1,
+            format: MatchFormat.OneVsOne,
+            seriesLength: SeriesLength.Bo1,
+            playerOnePartnerUserId: null,
+            playerTwoPartnerUserId: null,
             playerOneUserId: "player-a",
             playerTwoUserId: "player-b",
             rounds: [
@@ -140,6 +143,8 @@ describe("LeaderboardService", () => {
                     mapName: "McMinnville OR",
                     playerOneHeroName: "Achilles",
                     playerTwoHeroName: "Alice",
+                    playerOnePartnerHeroName: "",
+                    playerTwoPartnerHeroName: "",
                     firstPlayerUserId: "player-a",
                 },
             ],
@@ -159,7 +164,10 @@ describe("LeaderboardService", () => {
             guildId: "g1",
             channelId: "c1",
             registeredByUserId: "player-a",
-            format: MatchFormat.Bo3,
+            format: MatchFormat.OneVsOne,
+            seriesLength: SeriesLength.Bo3,
+            playerOnePartnerUserId: null,
+            playerTwoPartnerUserId: null,
             playerOneUserId: "player-a",
             playerTwoUserId: "player-b",
             rounds: [
@@ -169,6 +177,8 @@ describe("LeaderboardService", () => {
                     mapName: "McMinnville OR",
                     playerOneHeroName: "Achilles",
                     playerTwoHeroName: "Alice",
+                    playerOnePartnerHeroName: "",
+                    playerTwoPartnerHeroName: "",
                     firstPlayerUserId: "player-a",
                 },
                 {
@@ -177,6 +187,8 @@ describe("LeaderboardService", () => {
                     mapName: "Point Pleasant",
                     playerOneHeroName: "Achilles",
                     playerTwoHeroName: "Alice",
+                    playerOnePartnerHeroName: "",
+                    playerTwoPartnerHeroName: "",
                     firstPlayerUserId: "player-b",
                 },
             ],
@@ -204,7 +216,10 @@ describe("LeaderboardService", () => {
             guildId: "g1",
             channelId: "c1",
             messageId: "m1",
-            format: MatchFormat.Bo3,
+            format: MatchFormat.OneVsOne,
+            seriesLength: SeriesLength.Bo3,
+            playerOnePartnerUserId: null,
+            playerTwoPartnerUserId: null,
             registeredByUserId: "winner",
             winnerUserId: "winner",
             loserUserId: "loser",
@@ -231,6 +246,7 @@ describe("LeaderboardService", () => {
             discordUserId: "winner",
             isFrozen: false,
         })
+        matchRepository.find.mockResolvedValue([])
         matchRepository.save.mockImplementation((entity) =>
             Promise.resolve(entity),
         )
@@ -247,7 +263,10 @@ describe("LeaderboardService", () => {
                 guildId: "g1",
                 channelId: "c1",
                 registeredByUserId: "player-a",
-                format: MatchFormat.Bo3,
+                format: MatchFormat.OneVsOne,
+            seriesLength: SeriesLength.Bo3,
+            playerOnePartnerUserId: null,
+            playerTwoPartnerUserId: null,
                 playerOneUserId: "player-a",
                 playerTwoUserId: "player-b",
                 rounds: [
@@ -257,6 +276,8 @@ describe("LeaderboardService", () => {
                         mapName: "McMinnville OR",
                         playerOneHeroName: "Achilles",
                         playerTwoHeroName: "Alice",
+                    playerOnePartnerHeroName: "",
+                    playerTwoPartnerHeroName: "",
                         firstPlayerUserId: "player-a",
                     },
                 ],
@@ -270,21 +291,21 @@ describe("LeaderboardService", () => {
                 {
                     guildId: "g1",
                     discordUserId: "u1",
-                    format: MatchFormat.Bo1,
+                    format: MatchFormat.OneVsOne,
                     rating: 1100,
                     verifiedMatchCount: 5,
                 },
                 {
                     guildId: "g1",
                     discordUserId: "u2",
-                    format: MatchFormat.Bo1,
+                    format: MatchFormat.OneVsOne,
                     rating: 1200,
                     verifiedMatchCount: 3,
                 },
                 {
                     guildId: "g1",
                     discordUserId: "u3",
-                    format: MatchFormat.Bo1,
+                    format: MatchFormat.OneVsOne,
                     rating: 1300,
                     verifiedMatchCount: 0,
                 },
@@ -339,7 +360,7 @@ describe("LeaderboardService", () => {
             id: 1,
             guildId: "g1",
             discordUserId: "u1",
-            format: MatchFormat.Bo1,
+            format: MatchFormat.OneVsOne,
             rating: 1300,
             verifiedMatchCount: 5,
             lastPlayedAt: new Date(),
@@ -348,7 +369,7 @@ describe("LeaderboardService", () => {
             {
                 guildId: "g1",
                 discordUserId: "u1",
-                format: MatchFormat.Bo1,
+                format: MatchFormat.OneVsOne,
                 rating: 1000,
             },
         ])
@@ -372,7 +393,7 @@ describe("LeaderboardService", () => {
             {
                 guildId: "g1",
                 discordUserId: "u1",
-                format: MatchFormat.Bo1,
+                format: MatchFormat.OneVsOne,
                 rating: 1250,
             },
         ])
@@ -395,7 +416,7 @@ describe("LeaderboardService", () => {
             id: 1,
             guildId: "g1",
             discordUserId: "u1",
-            format: MatchFormat.Bo1,
+            format: MatchFormat.OneVsOne,
             rating: 1200,
             verifiedMatchCount: 12,
             lastPlayedAt: new Date("2025-01-01"),
@@ -434,7 +455,7 @@ describe("LeaderboardService", () => {
                 id: 1,
                 guildId: "g1",
                 discordUserId: "u1",
-                format: MatchFormat.Bo1,
+                format: MatchFormat.OneVsOne,
                 rating: 1234.56,
                 verifiedMatchCount: 20,
                 calibrationCompleted: true,
@@ -473,7 +494,7 @@ describe("LeaderboardService", () => {
             id: 1,
             guildId: "g1",
             discordUserId: "u1",
-            format: MatchFormat.Bo1,
+            format: MatchFormat.OneVsOne,
             rating: 1200,
             verifiedMatchCount: 12,
             calibrationCompleted: true,

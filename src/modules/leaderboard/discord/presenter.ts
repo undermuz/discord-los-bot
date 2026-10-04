@@ -32,22 +32,40 @@ export class LeaderboardDiscordPresenter {
             rounds,
         } = display
 
-        const participantIds = [match.winnerUserId, match.loserUserId]
+        const participantIds = [
+            match.winnerUserId,
+            match.winnerPartnerUserId,
+            match.loserUserId,
+            match.loserPartnerUserId,
+        ].filter((userId): userId is string => Boolean(userId))
         const confirmedUsers = participantIds.filter(
             (userId) => !pendingUsers.includes(userId),
         )
 
         const lines = [
-            `**Новый рейтинговый матч (${match.format}) — ${match.winnerScore}:${match.loserScore}**`,
-            `<@${match.winnerUserId}> vs <@${match.loserUserId}>`,
+            `**Новый рейтинговый матч (${match.format} ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
+            `${this.formatSide(match.winnerUserId, match.winnerPartnerUserId)} vs ${this.formatSide(match.loserUserId, match.loserPartnerUserId)}`,
             `Рейтинг: ${formatRating(winnerRating)} / ${formatRating(loserRating)}`,
             "",
         ]
 
         for (const round of rounds) {
+            const sideOneHeroes = this.formatHeroes(
+                round.playerOneHeroName,
+                round.playerOnePartnerHeroName,
+            )
+            const sideTwoHeroes = this.formatHeroes(
+                round.playerTwoHeroName,
+                round.playerTwoPartnerHeroName,
+            )
+            const hasHeroes = sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
+            const details = hasHeroes
+                ? `   Герои: ${sideOneHeroes} vs ${sideTwoHeroes} | Первый ход: <@${round.firstPlayerUserId}>`
+                : `   Первый ход: <@${round.firstPlayerUserId}>`
+
             lines.push(
                 `${round.roundNumber}. ${round.mapName} — <@${round.winnerUserId}>`,
-                `   Герои: ${round.playerOneHeroName} vs ${round.playerTwoHeroName} | Первый ход: <@${round.firstPlayerUserId}>`,
+                details,
             )
         }
 
@@ -81,6 +99,22 @@ export class LeaderboardDiscordPresenter {
         }
 
         return lines.join("\n")
+    }
+
+    private formatSide(userId: string, partnerUserId: string | null): string {
+        return partnerUserId
+            ? `<@${userId}> <@${partnerUserId}>`
+            : `<@${userId}>`
+    }
+
+    private formatHeroes(
+        heroName: string | null,
+        partnerHeroName: string | null,
+    ): string {
+        return [heroName, partnerHeroName]
+            .map((name) => name?.trim() ?? "")
+            .filter((name) => name.length > 0)
+            .join(", ")
     }
 
     async refreshMatchMessage(
@@ -161,8 +195,9 @@ export class LeaderboardDiscordPresenter {
             "",
             "**Для участников**",
             "",
-            "• `/new-rating-match` — зарегистрировать серию: `player_1`, `player_2`, формат, для каждого раунда — `map_N`, `round_N_winner`, `p1_hero_N`, `p2_hero_N`. Кто ходил первым: `p1_first_rounds` (например `1,3` — раунды, где первым ходил player_1). Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
-            "• `/um-1x1` — то же самое для Bo1: `p1`, `p2`, `winner`, `map`, `p1_hero`, `p2_hero`. Первым ходит `p2`.",
+            "• `/new-rating-match` — матч 1x1 или LosEnduranceAutumn2026: `player_1`, `player_2`, `format`, `series` (Bo1, Bo2, Bo3, Bo5). Для каждого раунда — `map_N`, `round_N_winner`, `p1_hero_N`, `p2_hero_N`. Герои не нужны для LosEnduranceAutumn2026. Кто ходил первым: `p1_first_rounds` (например `1,3`). Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
+            "• `/new-2x2` — матч 2x2: четыре игрока и `series` (Bo1, Bo2, Bo3). Для каждого раунда — карта, победитель и герой каждого игрока. Подтверждают все четверо.",
+            "• `/um-1x1` — короткий Bo1 для LosEnduranceAutumn2026: `p1`, `p2`, `winner`, `map`. Имена героев не нужны. Первым ходит `p2`.",
             "• `/leaderboard [player]` - посмотреть рейтинг себя или другого игрока.",
             "• `/leaderboard-top [size]` - топ игроков (10, 50 или 100) по основному рейтингу.",
             "• `/leaderboard-config` - текущие настройки рейтинга сервера.",

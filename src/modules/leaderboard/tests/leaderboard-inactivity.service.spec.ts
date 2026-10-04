@@ -47,14 +47,14 @@ describe("LeaderboardInactivityService", () => {
             {
                 guildId: "g1",
                 discordUserId: "u1",
-                format: MatchFormat.Bo1,
+                format: MatchFormat.OneVsOne,
                 lastPlayedAt: oldDate,
             },
         ])
 
         await service.checkGuildInactivity({
             guildId: "g1",
-            favoriteFormats: [MatchFormat.Bo1],
+            favoriteFormats: [MatchFormat.OneVsOne],
             verifyEmoji: "✅",
             calibrationRoleId: null,
             freezeRoleId: null,

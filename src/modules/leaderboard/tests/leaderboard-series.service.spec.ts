@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest"
 import { LeaderboardSeriesService } from "../series.service.js"
-import { MatchFormat } from "../types.js"
+import { MatchFormat, SeriesLength } from "../types.js"
 
 describe("LeaderboardSeriesService", () => {
     const service = new LeaderboardSeriesService()
     const playerA = "player-a"
     const playerB = "player-b"
+    const partnerA = "partner-a"
+    const partnerB = "partner-b"
     const round = (overrides: {
         roundNumber: number
         winnerUserId: string
@@ -13,91 +15,154 @@ describe("LeaderboardSeriesService", () => {
         firstPlayerUserId?: string
         playerOneHeroName?: string
         playerTwoHeroName?: string
+        playerOnePartnerHeroName?: string
+        playerTwoPartnerHeroName?: string
     }) => ({
         playerOneHeroName: "Achilles",
         playerTwoHeroName: "Alice",
+        playerOnePartnerHeroName: "",
+        playerTwoPartnerHeroName: "",
         firstPlayerUserId: playerA,
         ...overrides,
     })
 
-    it("derives Bo3 2:0 result", () => {
-        const result = service.deriveSeriesResult(
+    const derive = (
+        seriesLength: SeriesLength,
+        rounds: ReturnType<typeof round>[],
+        format: MatchFormat = MatchFormat.OneVsOne,
+        playerOnePartnerUserId: string | null = null,
+        playerTwoPartnerUserId: string | null = null,
+    ) =>
+        service.deriveSeriesResult(
             playerA,
+            playerOnePartnerUserId,
             playerB,
-            MatchFormat.Bo3,
-            [
-                round({
-                    roundNumber: 1,
-                    winnerUserId: playerA,
-                    mapName: "McMinnville OR",
-                }),
-                round({
-                    roundNumber: 2,
-                    winnerUserId: playerA,
-                    mapName: "Point Pleasant",
-                }),
-            ],
+            playerTwoPartnerUserId,
+            format,
+            seriesLength,
+            rounds,
         )
+
+    it("derives Bo3 2:0 result", () => {
+        const result = derive(SeriesLength.Bo3, [
+            round({
+                roundNumber: 1,
+                winnerUserId: playerA,
+                mapName: "McMinnville OR",
+            }),
+            round({
+                roundNumber: 2,
+                winnerUserId: playerA,
+                mapName: "Point Pleasant",
+            }),
+        ])
 
         expect(result).toEqual({
             winnerUserId: playerA,
             loserUserId: playerB,
+            winnerPartnerUserId: null,
+            loserPartnerUserId: null,
             winnerScore: 2,
             loserScore: 0,
         })
     })
 
     it("derives Bo3 2:1 result", () => {
-        const result = service.deriveSeriesResult(
-            playerA,
-            playerB,
-            MatchFormat.Bo3,
-            [
-                round({
-                    roundNumber: 1,
-                    winnerUserId: playerA,
-                    mapName: "McMinnville OR",
-                }),
-                round({
-                    roundNumber: 2,
-                    winnerUserId: playerB,
-                    mapName: "Point Pleasant",
-                    firstPlayerUserId: playerB,
-                }),
-                round({
-                    roundNumber: 3,
-                    winnerUserId: playerA,
-                    mapName: "Baskerville Manor",
-                }),
-            ],
-        )
+        const result = derive(SeriesLength.Bo3, [
+            round({
+                roundNumber: 1,
+                winnerUserId: playerA,
+                mapName: "McMinnville OR",
+            }),
+            round({
+                roundNumber: 2,
+                winnerUserId: playerB,
+                mapName: "Point Pleasant",
+                firstPlayerUserId: playerB,
+            }),
+            round({
+                roundNumber: 3,
+                winnerUserId: playerA,
+                mapName: "Baskerville Manor",
+            }),
+        ])
 
         expect(result).toEqual({
             winnerUserId: playerA,
             loserUserId: playerB,
+            winnerPartnerUserId: null,
+            loserPartnerUserId: null,
             winnerScore: 2,
             loserScore: 1,
         })
     })
 
     it("derives Bo1 from single round", () => {
-        const result = service.deriveSeriesResult(
-            playerA,
-            playerB,
-            MatchFormat.Bo1,
-            [
-                round({
-                    roundNumber: 1,
-                    winnerUserId: playerB,
-                    mapName: "Fayrlund Forest",
-                    firstPlayerUserId: playerB,
-                }),
-            ],
-        )
+        const result = derive(SeriesLength.Bo1, [
+            round({
+                roundNumber: 1,
+                winnerUserId: playerB,
+                mapName: "Fayrlund Forest",
+                firstPlayerUserId: playerB,
+            }),
+        ])
 
         expect(result).toEqual({
             winnerUserId: playerB,
             loserUserId: playerA,
+            winnerPartnerUserId: null,
+            loserPartnerUserId: null,
+            winnerScore: 1,
+            loserScore: 0,
+        })
+    })
+
+    it("derives Bo2 2:0 result", () => {
+        const result = derive(SeriesLength.Bo2, [
+            round({
+                roundNumber: 1,
+                winnerUserId: playerA,
+                mapName: "McMinnville OR",
+            }),
+            round({
+                roundNumber: 2,
+                winnerUserId: playerA,
+                mapName: "Point Pleasant",
+            }),
+        ])
+
+        expect(result).toEqual({
+            winnerUserId: playerA,
+            loserUserId: playerB,
+            winnerPartnerUserId: null,
+            loserPartnerUserId: null,
+            winnerScore: 2,
+            loserScore: 0,
+        })
+    })
+
+    it("counts a 2x2 round win for the partner's side", () => {
+        const result = derive(
+            SeriesLength.Bo1,
+            [
+                round({
+                    roundNumber: 1,
+                    winnerUserId: partnerA,
+                    mapName: "McMinnville OR",
+                    playerOnePartnerHeroName: "Achilles",
+                    playerTwoPartnerHeroName: "Alice",
+                }),
+            ],
+            MatchFormat.TwoVsTwo,
+            partnerA,
+            partnerB,
+        )
+
+        expect(result).toEqual({
+            winnerUserId: playerA,
+            loserUserId: playerB,
+            winnerPartnerUserId: partnerA,
+            loserPartnerUserId: partnerB,
             winnerScore: 1,
             loserScore: 0,
         })
@@ -105,7 +170,7 @@ describe("LeaderboardSeriesService", () => {
 
     it("rejects extra rounds after series decided", () => {
         expect(() =>
-            service.deriveSeriesResult(playerA, playerB, MatchFormat.Bo3, [
+            derive(SeriesLength.Bo3, [
                 round({
                     roundNumber: 1,
                     winnerUserId: playerA,
@@ -128,7 +193,7 @@ describe("LeaderboardSeriesService", () => {
 
     it("rejects incomplete series score", () => {
         expect(() =>
-            service.deriveSeriesResult(playerA, playerB, MatchFormat.Bo3, [
+            derive(SeriesLength.Bo3, [
                 round({
                     roundNumber: 1,
                     winnerUserId: playerA,
@@ -140,7 +205,7 @@ describe("LeaderboardSeriesService", () => {
 
     it("rejects winner outside participants", () => {
         expect(() =>
-            service.deriveSeriesResult(playerA, playerB, MatchFormat.Bo1, [
+            derive(SeriesLength.Bo1, [
                 round({
                     roundNumber: 1,
                     winnerUserId: "other",
@@ -150,9 +215,34 @@ describe("LeaderboardSeriesService", () => {
         ).toThrow("Round winner must be one of the players")
     })
 
+    it("derives LosEnduranceAutumn2026 without hero names", () => {
+        const result = derive(
+            SeriesLength.Bo1,
+            [
+                round({
+                    roundNumber: 1,
+                    winnerUserId: playerA,
+                    mapName: "McMinnville OR",
+                    playerOneHeroName: "",
+                    playerTwoHeroName: "",
+                }),
+            ],
+            MatchFormat.LosEnduranceAutumn2026,
+        )
+
+        expect(result).toEqual({
+            winnerUserId: playerA,
+            loserUserId: playerB,
+            winnerPartnerUserId: null,
+            loserPartnerUserId: null,
+            winnerScore: 1,
+            loserScore: 0,
+        })
+    })
+
     it("rejects unknown map name", () => {
         expect(() =>
-            service.deriveSeriesResult(playerA, playerB, MatchFormat.Bo1, [
+            derive(SeriesLength.Bo1, [
                 round({
                     roundNumber: 1,
                     winnerUserId: playerA,

@@ -1,8 +1,22 @@
 export enum MatchFormat {
+    OneVsOne = "1x1",
+    TwoVsTwo = "2x2",
+    LosEnduranceAutumn2026 = "LosEnduranceAutumn2026",
+}
+
+export enum SeriesLength {
     Bo1 = "Bo1",
     Bo2 = "Bo2",
     Bo3 = "Bo3",
     Bo5 = "Bo5",
+}
+
+export function formatRequiresHeroes(format: MatchFormat): boolean {
+    return format !== MatchFormat.LosEnduranceAutumn2026
+}
+
+export function formatTeamSize(format: MatchFormat): number {
+    return format === MatchFormat.TwoVsTwo ? 2 : 1
 }
 
 export enum MatchStatus {
@@ -12,6 +26,16 @@ export enum MatchStatus {
 }
 
 export const MATCH_FORMATS = Object.values(MatchFormat)
+export const SERIES_LENGTHS = Object.values(SeriesLength)
+export const DUEL_MATCH_FORMATS = [
+    MatchFormat.OneVsOne,
+    MatchFormat.LosEnduranceAutumn2026,
+]
+export const TWO_VS_TWO_SERIES_LENGTHS = [
+    SeriesLength.Bo1,
+    SeriesLength.Bo2,
+    SeriesLength.Bo3,
+]
 
 export interface RegisterMatchRoundDto {
     roundNumber: number
@@ -19,6 +43,8 @@ export interface RegisterMatchRoundDto {
     mapName: string
     playerOneHeroName: string
     playerTwoHeroName: string
+    playerOnePartnerHeroName: string
+    playerTwoPartnerHeroName: string
     firstPlayerUserId: string
 }
 
@@ -30,6 +56,8 @@ export interface SeriesScore {
 export interface SeriesResult extends SeriesScore {
     winnerUserId: string
     loserUserId: string
+    winnerPartnerUserId: string | null
+    loserPartnerUserId: string | null
 }
 
 export interface RegisterMatchDto {
@@ -37,8 +65,11 @@ export interface RegisterMatchDto {
     channelId: string
     registeredByUserId: string
     format: MatchFormat
+    seriesLength: SeriesLength
     playerOneUserId: string
+    playerOnePartnerUserId: string | null
     playerTwoUserId: string
+    playerTwoPartnerUserId: string | null
     rounds: RegisterMatchRoundDto[]
 }
 

@@ -16,14 +16,14 @@ describe("LeaderboardAggregateService", () => {
     it("calculates average using initial rating for missing formats", async () => {
         repository.find.mockResolvedValue([
             {
-                format: MatchFormat.Bo1,
+                format: MatchFormat.OneVsOne,
                 rating: 1100,
             },
         ])
 
         const mainRating = await service.getMainRating("g1", "u1", {
             guildId: "g1",
-            favoriteFormats: [MatchFormat.Bo1, MatchFormat.Bo3],
+            favoriteFormats: [MatchFormat.OneVsOne, MatchFormat.TwoVsTwo],
             verifyEmoji: "✅",
             calibrationRoleId: null,
             freezeRoleId: null,
@@ -38,18 +38,18 @@ describe("LeaderboardAggregateService", () => {
     it("keeps hundredths in main rating average", async () => {
         repository.find.mockResolvedValue([
             {
-                format: "Bo1",
+                format: "1x1",
                 rating: 1000.25,
             },
             {
-                format: "Bo3",
+                format: "2x2",
                 rating: 1000.75,
             },
         ])
 
         const mainRating = await service.getMainRating("g1", "u1", {
             guildId: "g1",
-            favoriteFormats: ["Bo1", "Bo3"],
+            favoriteFormats: ["1x1", "2x2"],
             verifyEmoji: "✅",
             calibrationRoleId: "cal",
             freezeRoleId: "freeze",

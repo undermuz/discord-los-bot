@@ -28,6 +28,7 @@ import {
     PlayerRoleState,
     RegisterMatchDto,
     RoleSyncPlan,
+    SeriesLength,
     MATCH_FORMATS,
 } from "./types.js"
 
@@ -58,8 +59,11 @@ export class LeaderboardService {
 
         const seriesResult = this.seriesService.deriveSeriesResult(
             dto.playerOneUserId,
+            dto.playerOnePartnerUserId,
             dto.playerTwoUserId,
+            dto.playerTwoPartnerUserId,
             dto.format,
+            dto.seriesLength,
             dto.rounds,
         )
 
@@ -69,9 +73,12 @@ export class LeaderboardService {
                     guildId: dto.guildId,
                     channelId: dto.channelId,
                     format: dto.format,
+                    seriesLength: dto.seriesLength,
                     registeredByUserId: dto.registeredByUserId,
                     winnerUserId: seriesResult.winnerUserId,
                     loserUserId: seriesResult.loserUserId,
+                    winnerPartnerUserId: seriesResult.winnerPartnerUserId,
+                    loserPartnerUserId: seriesResult.loserPartnerUserId,
                     winnerScore: seriesResult.winnerScore,
                     loserScore: seriesResult.loserScore,
                     status: MatchStatus.Pending,
@@ -82,17 +89,16 @@ export class LeaderboardService {
                 .toRoundEntities(
                     match.id,
                     dto.playerOneUserId,
+                    dto.playerOnePartnerUserId,
                     dto.playerTwoUserId,
+                    dto.playerTwoPartnerUserId,
                     dto.rounds,
                 )
                 .map((round) => manager.create(RatingMatchRound, round))
 
             await manager.save(roundEntities)
 
-            for (const userId of [
-                seriesResult.winnerUserId,
-                seriesResult.loserUserId,
-            ]) {
+            for (const userId of this.getRequiredParticipants(match)) {
                 if (userId === dto.registeredByUserId) {
                     await manager.save(
                         manager.create(MatchConfirmation, {
@@ -132,10 +138,7 @@ export class LeaderboardService {
             return null
         }
 
-        if (
-            discordUserId !== match.winnerUserId &&
-            discordUserId !== match.loserUserId
-        ) {
+        if (!this.getRequiredParticipants(match).includes(discordUserId)) {
             return null
         }
 
@@ -175,96 +178,157 @@ export class LeaderboardService {
             match.guildId,
         )
 
-        const winnerRating =
-            (await this.playerRatingRepository.findOne({
-                where: {
-                    guildId: match.guildId,
-                    discordUserId: match.winnerUserId,
-                    format: match.format,
-                },
-            })) ??
-            (await this.createPlayerRating(
-                match.guildId,
-                match.winnerUserId,
-                match.format,
-                config.initialRating,
-            ))
-        const loserRating =
-            (await this.playerRatingRepository.findOne({
-                where: {
-                    guildId: match.guildId,
-                    discordUserId: match.loserUserId,
-                    format: match.format,
-                },
-            })) ??
-            (await this.createPlayerRating(
-                match.guildId,
-                match.loserUserId,
-                match.format,
-                config.initialRating,
-            ))
-
-        const winnerWinStreak = await this.getConsecutiveWins(
-            match.guildId,
+        const winnerIds = this.sideUserIds(
             match.winnerUserId,
-            match.format,
+            match.winnerPartnerUserId,
+        )
+        const loserIds = this.sideUserIds(
+            match.loserUserId,
+            match.loserPartnerUserId,
+        )
+        const winnerRatings = await Promise.all(
+            winnerIds.map((userId) =>
+                this.getOrCreatePlayerRating(
+                    match.guildId,
+                    userId,
+                    match.format,
+                    config.initialRating,
+                ),
+            ),
+        )
+        const loserRatings = await Promise.all(
+            loserIds.map((userId) =>
+                this.getOrCreatePlayerRating(
+                    match.guildId,
+                    userId,
+                    match.format,
+                    config.initialRating,
+                ),
+            ),
+        )
+        const seriesScore = {
+            winnerScore: match.winnerScore,
+            loserScore: match.loserScore,
+        }
+        const winnerAverage = this.averageRating(
+            winnerRatings.map((rating) => rating.rating),
+        )
+        const loserAverage = this.averageRating(
+            loserRatings.map((rating) => rating.rating),
         )
 
-        const delta = this.ratingService.applyResult(
-            match.format,
-            winnerRating.rating,
-            loserRating.rating,
-            {
-                winnerScore: match.winnerScore,
-                loserScore: match.loserScore,
-            },
-            {
-                winner: {
-                    k1: computeK1(winnerWinStreak),
-                    k2: computeK2(
-                        winnerRating.verifiedMatchCount <
-                            config.calibrationMatchThreshold,
-                        winnerRating.calibrationCompleted,
-                    ),
+        if (winnerRatings.length === 1 && loserRatings.length === 1) {
+            const winnerRating = winnerRatings[0]
+            const loserRating = loserRatings[0]
+            const winnerWinStreak = await this.getConsecutiveWins(
+                match.guildId,
+                winnerRating.discordUserId,
+                match.format,
+            )
+            const delta = this.ratingService.applyResult(
+                match.seriesLength,
+                winnerRating.rating,
+                loserRating.rating,
+                seriesScore,
+                {
+                    winner: {
+                        k1: computeK1(winnerWinStreak),
+                        k2: computeK2(
+                            winnerRating.verifiedMatchCount <
+                                config.calibrationMatchThreshold,
+                            winnerRating.calibrationCompleted,
+                        ),
+                    },
+                    loser: {
+                        k1: 1,
+                        k2: computeK2(
+                            loserRating.verifiedMatchCount <
+                                config.calibrationMatchThreshold,
+                            loserRating.calibrationCompleted,
+                        ),
+                    },
                 },
-                loser: {
-                    k1: 1,
-                    k2: computeK2(
-                        loserRating.verifiedMatchCount <
-                            config.calibrationMatchThreshold,
-                        loserRating.calibrationCompleted,
-                    ),
-                },
-            },
-        )
+            )
 
-        winnerRating.rating = this.ratingService.applyDelta(
-            winnerRating.rating,
-            delta.winnerDelta,
-        )
-        loserRating.rating = this.ratingService.applyDelta(
-            loserRating.rating,
-            delta.loserDelta,
-        )
+            winnerRating.rating = this.ratingService.applyDelta(
+                winnerRating.rating,
+                delta.winnerDelta,
+            )
+            loserRating.rating = this.ratingService.applyDelta(
+                loserRating.rating,
+                delta.loserDelta,
+            )
+        } else {
+            const base = this.ratingService.applyResult(
+                match.seriesLength,
+                winnerAverage,
+                loserAverage,
+                seriesScore,
+                {
+                    winner: { k1: 1, k2: 1 },
+                    loser: { k1: 1, k2: 1 },
+                },
+            )
+
+            for (const playerRating of winnerRatings) {
+                const streak = await this.getConsecutiveWins(
+                    match.guildId,
+                    playerRating.discordUserId,
+                    match.format,
+                )
+                const k1 =
+                    match.seriesLength === SeriesLength.Bo5
+                        ? 1
+                        : computeK1(streak)
+                const k2 =
+                    match.seriesLength === SeriesLength.Bo5
+                        ? 1
+                        : computeK2(
+                              playerRating.verifiedMatchCount <
+                                  config.calibrationMatchThreshold,
+                              playerRating.calibrationCompleted,
+                          )
+
+                playerRating.rating = this.ratingService.applyDelta(
+                    playerRating.rating,
+                    roundRating(base.winnerDelta * k1 * k2),
+                )
+            }
+
+            for (const playerRating of loserRatings) {
+                const k2 =
+                    match.seriesLength === SeriesLength.Bo5
+                        ? 1
+                        : computeK2(
+                              playerRating.verifiedMatchCount <
+                                  config.calibrationMatchThreshold,
+                              playerRating.calibrationCompleted,
+                          )
+
+                playerRating.rating = this.ratingService.applyDelta(
+                    playerRating.rating,
+                    roundRating(base.loserDelta * k2),
+                )
+            }
+        }
 
         const now = new Date()
-        winnerRating.verifiedMatchCount += 1
-        loserRating.verifiedMatchCount += 1
-        winnerRating.lastPlayedAt = now
-        loserRating.lastPlayedAt = now
-        this.markCalibrationCompletedIfNeeded(
-            winnerRating,
-            config.calibrationMatchThreshold,
-        )
-        this.markCalibrationCompletedIfNeeded(
-            loserRating,
-            config.calibrationMatchThreshold,
-        )
+        const updatedRatings = [...winnerRatings, ...loserRatings]
 
-        await this.playerRatingRepository.save([winnerRating, loserRating])
+        for (const playerRating of updatedRatings) {
+            playerRating.verifiedMatchCount += 1
+            playerRating.lastPlayedAt = now
+            this.markCalibrationCompletedIfNeeded(
+                playerRating,
+                config.calibrationMatchThreshold,
+            )
+        }
 
-        await this.unfreezePlayer(match.guildId, match.winnerUserId)
-        await this.unfreezePlayer(match.guildId, match.loserUserId)
+        await this.playerRatingRepository.save(updatedRatings)
+
+        for (const userId of this.getRequiredParticipants(match)) {
+            await this.unfreezePlayer(match.guildId, userId)
+        }
 
         match.status = MatchStatus.Verified
         match.verifiedAt = now
@@ -334,20 +398,38 @@ export class LeaderboardService {
             order: { roundNumber: "ASC" },
         })
 
-        const winnerRating = await this.aggregateService.getFormatRating(
-            match.guildId,
-            match.winnerUserId,
-            match.format,
-            config.initialRating,
+        const winnerRating = this.averageRating(
+            await Promise.all(
+                this.sideUserIds(
+                    match.winnerUserId,
+                    match.winnerPartnerUserId,
+                ).map((userId) =>
+                    this.aggregateService.getFormatRating(
+                        match.guildId,
+                        userId,
+                        match.format,
+                        config.initialRating,
+                    ),
+                ),
+            ),
         )
-        const loserRating = await this.aggregateService.getFormatRating(
-            match.guildId,
-            match.loserUserId,
-            match.format,
-            config.initialRating,
+        const loserRating = this.averageRating(
+            await Promise.all(
+                this.sideUserIds(
+                    match.loserUserId,
+                    match.loserPartnerUserId,
+                ).map((userId) =>
+                    this.aggregateService.getFormatRating(
+                        match.guildId,
+                        userId,
+                        match.format,
+                        config.initialRating,
+                    ),
+                ),
+            ),
         )
 
-        const pendingUsers = [match.winnerUserId, match.loserUserId].filter(
+        const pendingUsers = this.getRequiredParticipants(match).filter(
             (userId) =>
                 !confirmations.some(
                     (confirmation) => confirmation.discordUserId === userId,
@@ -454,7 +536,10 @@ export class LeaderboardService {
     }
 
     getRequiredParticipants(match: RatingMatch): string[] {
-        return [match.winnerUserId, match.loserUserId]
+        return [
+            ...this.sideUserIds(match.winnerUserId, match.winnerPartnerUserId),
+            ...this.sideUserIds(match.loserUserId, match.loserPartnerUserId),
+        ]
     }
 
     async getPlayerLeaderboardSummary(
@@ -628,15 +713,21 @@ export class LeaderboardService {
         let streak = 0
 
         for (const verifiedMatch of matches) {
-            if (verifiedMatch.winnerUserId === discordUserId) {
+            const winners = this.sideUserIds(
+                verifiedMatch.winnerUserId,
+                verifiedMatch.winnerPartnerUserId,
+            )
+            const losers = this.sideUserIds(
+                verifiedMatch.loserUserId,
+                verifiedMatch.loserPartnerUserId,
+            )
+
+            if (winners.includes(discordUserId)) {
                 streak += 1
                 continue
             }
 
-            if (
-                verifiedMatch.winnerUserId !== discordUserId &&
-                verifiedMatch.loserUserId !== discordUserId
-            ) {
+            if (!losers.includes(discordUserId)) {
                 continue
             }
 
@@ -665,6 +756,24 @@ export class LeaderboardService {
         }
 
         return state
+    }
+
+    private sideUserIds(
+        userId: string,
+        partnerUserId: string | null,
+    ): string[] {
+        return [userId, partnerUserId].filter((id): id is string => Boolean(id))
+    }
+
+    private averageRating(ratings: number[]): number {
+        if (ratings.length === 0) {
+            return 0
+        }
+
+        return roundRating(
+            ratings.reduce((total, rating) => total + rating, 0) /
+                ratings.length,
+        )
     }
 
     private async unfreezePlayer(

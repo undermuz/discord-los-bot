@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common"
 import { roundRating } from "./rating.util.js"
-import { MatchFormat, SeriesScore } from "./types.js"
+import { SeriesLength, SeriesScore } from "./types.js"
 
 export interface RatingDelta {
     winnerDelta: number
@@ -74,15 +74,15 @@ export function computeRatingDelta(
 }
 
 function resolveMaxPoints(
-    format: MatchFormat,
+    seriesLength: SeriesLength,
     seriesScore: SeriesScore,
 ): number | null {
     const { winnerScore, loserScore } = seriesScore
 
-    switch (format) {
-        case MatchFormat.Bo1:
+    switch (seriesLength) {
+        case SeriesLength.Bo1:
             return 10
-        case MatchFormat.Bo2:
+        case SeriesLength.Bo2:
             if (winnerScore === 1 && loserScore === 1) {
                 return 0
             }
@@ -92,7 +92,7 @@ function resolveMaxPoints(
             }
 
             return null
-        case MatchFormat.Bo3:
+        case SeriesLength.Bo3:
             if (winnerScore === 2 && loserScore === 0) {
                 return 20
             }
@@ -102,13 +102,13 @@ function resolveMaxPoints(
             }
 
             return null
-        case MatchFormat.Bo5:
+        case SeriesLength.Bo5:
             return null
     }
 }
 
 class EloRatingStrategy implements RatingStrategy {
-    constructor(private readonly format: MatchFormat) {}
+    constructor(private readonly seriesLength: SeriesLength) {}
 
     apply(
         winnerRating: number,
@@ -116,11 +116,11 @@ class EloRatingStrategy implements RatingStrategy {
         seriesScore: SeriesScore,
         coeffs: RatingCoeffs,
     ): RatingDelta {
-        const maxPoints = resolveMaxPoints(this.format, seriesScore)
+        const maxPoints = resolveMaxPoints(this.seriesLength, seriesScore)
 
         if (maxPoints === null) {
             throw new Error(
-                `Unsupported series score ${seriesScore.winnerScore}:${seriesScore.loserScore} for ${this.format}`,
+                `Unsupported series score ${seriesScore.winnerScore}:${seriesScore.loserScore} for ${this.seriesLength}`,
             )
         }
 
@@ -136,21 +136,21 @@ class StubRatingStrategy implements RatingStrategy {
 
 @Injectable()
 export class LeaderboardRatingService {
-    private readonly strategies: Record<MatchFormat, RatingStrategy> = {
-        [MatchFormat.Bo1]: new EloRatingStrategy(MatchFormat.Bo1),
-        [MatchFormat.Bo2]: new EloRatingStrategy(MatchFormat.Bo2),
-        [MatchFormat.Bo3]: new EloRatingStrategy(MatchFormat.Bo3),
-        [MatchFormat.Bo5]: new StubRatingStrategy(),
+    private readonly strategies: Record<SeriesLength, RatingStrategy> = {
+        [SeriesLength.Bo1]: new EloRatingStrategy(SeriesLength.Bo1),
+        [SeriesLength.Bo2]: new EloRatingStrategy(SeriesLength.Bo2),
+        [SeriesLength.Bo3]: new EloRatingStrategy(SeriesLength.Bo3),
+        [SeriesLength.Bo5]: new StubRatingStrategy(),
     }
 
     applyResult(
-        format: MatchFormat,
+        seriesLength: SeriesLength,
         winnerRating: number,
         loserRating: number,
         seriesScore: SeriesScore,
         coeffs: RatingCoeffs,
     ): RatingDelta {
-        return this.strategies[format].apply(
+        return this.strategies[seriesLength].apply(
             winnerRating,
             loserRating,
             seriesScore,

@@ -10,7 +10,7 @@ import {
 } from "../../../../platforms/discord/discord.service.js"
 import { LeaderboardConfigService } from "../../config.service.js"
 import { LeaderboardService } from "../../leaderboard.service.js"
-import { MatchFormat } from "../../types.js"
+import { MatchFormat, SeriesLength } from "../../types.js"
 import { LeaderboardDiscordCommands } from "../commands.js"
 import { LeaderboardDiscordPresenter } from "../presenter.js"
 import { LeaderboardDiscordRoles } from "../roles.js"
@@ -27,7 +27,8 @@ describe("LeaderboardDiscordCommands", () => {
             getMatchDisplayData: vi.fn().mockResolvedValue({
                 match: {
                     id: 1,
-                    format: MatchFormat.Bo1,
+                    format: MatchFormat.OneVsOne,
+                    seriesLength: SeriesLength.Bo1,
                     winnerUserId: "w1",
                     loserUserId: "l1",
                     winnerScore: 1,
@@ -63,7 +64,7 @@ describe("LeaderboardDiscordCommands", () => {
         configService = {
             getOrCreateGuildConfig: vi.fn().mockResolvedValue({
                 guildId: "g1",
-                favoriteFormats: ["Bo1", "Bo3"],
+                favoriteFormats: ["1x1", "2x2"],
                 verifyEmoji: "✅",
                 calibrationRoleId: "role-cal",
                 freezeRoleId: "role-freeze",
@@ -113,7 +114,8 @@ describe("LeaderboardDiscordCommands", () => {
         const interaction = createMockChatInputInteraction(
             "new-rating-match",
             {
-                format: MatchFormat.Bo1,
+                format: MatchFormat.OneVsOne,
+                series: SeriesLength.Bo1,
                 player_1: playerOne,
                 player_2: playerTwo,
                 map_1: "McMinnville OR",
@@ -146,6 +148,8 @@ describe("LeaderboardDiscordCommands", () => {
                         mapName: "McMinnville OR",
                         playerOneHeroName: "Achilles",
                         playerTwoHeroName: "Alice",
+                        playerOnePartnerHeroName: "",
+                        playerTwoPartnerHeroName: "",
                         firstPlayerUserId: "w1",
                     },
                 ],
@@ -155,7 +159,7 @@ describe("LeaderboardDiscordCommands", () => {
         expect(interaction.reply).toHaveBeenCalled()
     })
 
-    it("registers a Bo1 match from um-1x1", async () => {
+    it("registers a LosEnduranceAutumn2026 match from um-1x1", async () => {
         const playerOne = createMockUser({ id: "w1" })
         const playerTwo = createMockUser({ id: "l1" })
         const send = vi.fn().mockResolvedValue({
@@ -170,8 +174,6 @@ describe("LeaderboardDiscordCommands", () => {
                 p2: playerTwo,
                 winner: playerOne,
                 map: "McMinnville OR",
-                p1_hero: "Achilles",
-                p2_hero: "Alice",
             },
             {
                 user: playerOne,
@@ -188,7 +190,8 @@ describe("LeaderboardDiscordCommands", () => {
 
         expect(leaderboardService.registerMatch).toHaveBeenCalledWith(
             expect.objectContaining({
-                format: MatchFormat.Bo1,
+                format: MatchFormat.LosEnduranceAutumn2026,
+                seriesLength: SeriesLength.Bo1,
                 playerOneUserId: "w1",
                 playerTwoUserId: "l1",
                 rounds: [
@@ -196,8 +199,10 @@ describe("LeaderboardDiscordCommands", () => {
                         roundNumber: 1,
                         winnerUserId: "w1",
                         mapName: "McMinnville OR",
-                        playerOneHeroName: "Achilles",
-                        playerTwoHeroName: "Alice",
+                        playerOneHeroName: "",
+                        playerTwoHeroName: "",
+                        playerOnePartnerHeroName: "",
+                        playerTwoPartnerHeroName: "",
                         firstPlayerUserId: "l1",
                     },
                 ],
@@ -215,7 +220,8 @@ describe("LeaderboardDiscordCommands", () => {
         const interaction = createMockChatInputInteraction(
             "new-rating-match",
             {
-                format: MatchFormat.Bo3,
+                format: MatchFormat.OneVsOne,
+                series: SeriesLength.Bo3,
                 player_1: createMockUser({ id: "u1" }),
                 player_2: createMockUser({ id: "u2" }),
                 map_1: "McMinnville OR",

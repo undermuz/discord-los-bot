@@ -6,7 +6,11 @@ import {
     PrimaryGeneratedColumn,
     Unique,
 } from "typeorm"
-import { MatchFormat, MatchStatus } from "../../modules/leaderboard/types.js"
+import {
+    MatchFormat,
+    MatchStatus,
+    SeriesLength,
+} from "../../modules/leaderboard/types.js"
 
 @Entity("rating_matches")
 @Index(["guildId", "messageId"])
@@ -26,6 +30,9 @@ export class RatingMatch {
     @Column({ type: "varchar" })
     format: MatchFormat
 
+    @Column({ type: "varchar" })
+    seriesLength: SeriesLength
+
     @Column()
     registeredByUserId: string
 
@@ -34,6 +41,12 @@ export class RatingMatch {
 
     @Column()
     loserUserId: string
+
+    @Column({ type: "varchar", nullable: true })
+    winnerPartnerUserId: string | null
+
+    @Column({ type: "varchar", nullable: true })
+    loserPartnerUserId: string | null
 
     @Column({ default: 0 })
     winnerScore: number
@@ -96,6 +109,12 @@ export class RatingMatchRound {
 
     @Column()
     playerTwoHeroName: string
+
+    @Column({ type: "varchar", nullable: true })
+    playerOnePartnerHeroName: string | null
+
+    @Column({ type: "varchar", nullable: true })
+    playerTwoPartnerHeroName: string | null
 
     @Column()
     firstPlayerUserId: string

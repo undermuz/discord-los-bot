@@ -93,7 +93,7 @@ export class LeaderboardDiscordGateway implements OnModuleInit {
 
             await this.rolesAdapter.syncMembers(
                 guild.id,
-                [finalized.winnerUserId, finalized.loserUserId],
+                this.leaderboardService.getRequiredParticipants(finalized),
                 (userId) => guild.members.fetch(userId),
             )
 

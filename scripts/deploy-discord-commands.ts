@@ -7,8 +7,11 @@ import {
 } from "discord.js"
 import {
     DEFAULT_TIER_DEFINITIONS,
+    DUEL_MATCH_FORMATS,
     LEADERBOARD_TOP_SIZES,
     MATCH_FORMATS,
+    SERIES_LENGTHS,
+    TWO_VS_TWO_SERIES_LENGTHS,
 } from "../src/modules/leaderboard/types"
 
 const { DISCORD_TOKEN, DISCORD_APP_ID, APP_ID } = process.env
@@ -126,9 +129,21 @@ const commands = [
                     .setDescription("Match format")
                     .setRequired(true)
                     .addChoices(
-                        MATCH_FORMATS.map((format) => ({
+                        DUEL_MATCH_FORMATS.map((format) => ({
                             name: format,
                             value: format,
+                        })),
+                    ),
+            )
+            .addStringOption((option) =>
+                option
+                    .setName("series")
+                    .setDescription("Series length")
+                    .setRequired(true)
+                    .addChoices(
+                        SERIES_LENGTHS.map((seriesLength) => ({
+                            name: seriesLength,
+                            value: seriesLength,
                         })),
                     ),
             )
@@ -188,7 +203,7 @@ const commands = [
     })(),
     new SlashCommandBuilder()
         .setName("um-1x1")
-        .setDescription("Register a Bo1 rating match")
+        .setDescription("Register a LosEnduranceAutumn2026 rating match")
         .addUserOption((option) =>
             option
                 .setName("p1")
@@ -213,21 +228,103 @@ const commands = [
                 .setDescription("Map name")
                 .setRequired(true)
                 .setAutocomplete(true),
-        )
-        .addStringOption((option) =>
-            option
-                .setName("p1_hero")
-                .setDescription("Player 1 hero")
-                .setRequired(true)
-                .setAutocomplete(true),
-        )
-        .addStringOption((option) =>
-            option
-                .setName("p2_hero")
-                .setDescription("Player 2 hero")
-                .setRequired(true)
-                .setAutocomplete(true),
         ),
+    (() => {
+        const newTwoVsTwo = new SlashCommandBuilder()
+            .setName("new-2x2")
+            .setDescription("Register a 2x2 rating match")
+            .addStringOption((option) =>
+                option
+                    .setName("series")
+                    .setDescription("Series length")
+                    .setRequired(true)
+                    .addChoices(
+                        TWO_VS_TWO_SERIES_LENGTHS.map((seriesLength) => ({
+                            name: seriesLength,
+                            value: seriesLength,
+                        })),
+                    ),
+            )
+            .addUserOption((option) =>
+                option
+                    .setName("team1_p1")
+                    .setDescription("Team 1 player 1")
+                    .setRequired(true),
+            )
+            .addUserOption((option) =>
+                option
+                    .setName("team1_p2")
+                    .setDescription("Team 1 player 2")
+                    .setRequired(true),
+            )
+            .addUserOption((option) =>
+                option
+                    .setName("team2_p1")
+                    .setDescription("Team 2 player 1")
+                    .setRequired(true),
+            )
+            .addUserOption((option) =>
+                option
+                    .setName("team2_p2")
+                    .setDescription("Team 2 player 2")
+                    .setRequired(true),
+            )
+
+        for (let i = 1; i <= 3; i++) {
+            newTwoVsTwo.addStringOption((option) =>
+                option
+                    .setName(`map_${i}`)
+                    .setDescription(`Map name for round ${i}`)
+                    .setRequired(i === 1)
+                    .setAutocomplete(true),
+            )
+            newTwoVsTwo.addUserOption((option) =>
+                option
+                    .setName(`round_${i}_winner`)
+                    .setDescription(`Winner of round ${i}`)
+                    .setRequired(false),
+            )
+            newTwoVsTwo.addStringOption((option) =>
+                option
+                    .setName(`t1p1_hero_${i}`)
+                    .setDescription(`Team 1 player 1 hero for round ${i}`)
+                    .setRequired(false)
+                    .setAutocomplete(true),
+            )
+            newTwoVsTwo.addStringOption((option) =>
+                option
+                    .setName(`t1p2_hero_${i}`)
+                    .setDescription(`Team 1 player 2 hero for round ${i}`)
+                    .setRequired(false)
+                    .setAutocomplete(true),
+            )
+            newTwoVsTwo.addStringOption((option) =>
+                option
+                    .setName(`t2p1_hero_${i}`)
+                    .setDescription(`Team 2 player 1 hero for round ${i}`)
+                    .setRequired(false)
+                    .setAutocomplete(true),
+            )
+            newTwoVsTwo.addStringOption((option) =>
+                option
+                    .setName(`t2p2_hero_${i}`)
+                    .setDescription(`Team 2 player 2 hero for round ${i}`)
+                    .setRequired(false)
+                    .setAutocomplete(true),
+            )
+        }
+
+        newTwoVsTwo.addStringOption((option) =>
+            option
+                .setName("team1_first_rounds")
+                .setDescription(
+                    "Rounds where team 1 player 1 moved first (e.g. 1,3). Others: team 2",
+                )
+                .setRequired(false),
+        )
+
+        return newTwoVsTwo
+    })(),
     (() => {
         const setupFormats = new SlashCommandBuilder()
             .setName("leaderboard-setup-formats")
