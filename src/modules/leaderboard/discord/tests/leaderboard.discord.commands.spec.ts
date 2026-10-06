@@ -222,6 +222,144 @@ describe("LeaderboardDiscordCommands", () => {
         expect(interaction.reply).toHaveBeenCalled()
     })
 
+    it("rejects a unique format on new-rating-match", async () => {
+        const interaction = createMockChatInputInteraction(
+            "new-rating-match",
+            {
+                format: MatchFormat.LosEnduranceAutumn2026,
+                series: SeriesLength.Bo1,
+                player_1: createMockUser({ id: "u1" }),
+                player_2: createMockUser({ id: "u2" }),
+            },
+            {
+                channel: {
+                    id: "c1",
+                    isTextBased: () => true,
+                    send: vi.fn(),
+                },
+                guild: { id: "g1" },
+            },
+        )
+
+        await handlers.get("new-rating-match")!(interaction as never)
+
+        expect(leaderboardService.registerMatch).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Invalid match format",
+            ephemeral: true,
+        })
+    })
+
+    it("registers a 1x1 Bo1 match from um-1x1-bo1", async () => {
+        const playerOne = createMockUser({ id: "w1" })
+        const playerTwo = createMockUser({ id: "l1" })
+        const send = vi.fn().mockResolvedValue({
+            id: "msg-1",
+            url: "https://discord.com/message/1",
+            react: vi.fn(),
+        })
+        const interaction = createMockChatInputInteraction(
+            "um-1x1-bo1",
+            {
+                player_1: playerOne,
+                player_2: playerTwo,
+                map_1: "McMinnville OR",
+                round_1_winner: playerOne,
+                p1_hero_1: "Achilles",
+                p2_hero_1: "Alice",
+            },
+            {
+                user: playerOne,
+                channel: {
+                    id: "c1",
+                    isTextBased: () => true,
+                    send,
+                },
+                guild: { id: "g1" },
+            },
+        )
+
+        await handlers.get("um-1x1-bo1")!(interaction as never)
+
+        expect(leaderboardService.registerMatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                format: MatchFormat.OneVsOne,
+                seriesLength: SeriesLength.Bo1,
+                playerOneUserId: "w1",
+                playerTwoUserId: "l1",
+                rounds: [
+                    expect.objectContaining({
+                        roundNumber: 1,
+                        winnerUserId: "w1",
+                        mapName: "McMinnville OR",
+                        playerOneHeroName: "Achilles",
+                        playerTwoHeroName: "Alice",
+                    }),
+                ],
+            }),
+        )
+    })
+
+    it("registers a 2x2 Bo1 match from um-2x2", async () => {
+        const teamOnePlayer = createMockUser({ id: "t1p1" })
+        const teamOnePartner = createMockUser({ id: "t1p2" })
+        const teamTwoPlayer = createMockUser({ id: "t2p1" })
+        const teamTwoPartner = createMockUser({ id: "t2p2" })
+        const send = vi.fn().mockResolvedValue({
+            id: "msg-1",
+            url: "https://discord.com/message/1",
+            react: vi.fn(),
+        })
+        const interaction = createMockChatInputInteraction(
+            "um-2x2",
+            {
+                team1_p1: teamOnePlayer,
+                team1_p2: teamOnePartner,
+                team2_p1: teamTwoPlayer,
+                team2_p2: teamTwoPartner,
+                map_1: "McMinnville OR",
+                round_1_winner: teamOnePlayer,
+                t1p1_hero_1: "Achilles",
+                t1p2_hero_1: "Ajax",
+                t2p1_hero_1: "Alice",
+                t2p2_hero_1: "Atalanta",
+            },
+            {
+                user: teamOnePlayer,
+                channel: {
+                    id: "c1",
+                    isTextBased: () => true,
+                    send,
+                },
+                guild: { id: "g1" },
+            },
+        )
+
+        await handlers.get("um-2x2")!(interaction as never)
+
+        expect(leaderboardService.registerMatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                format: MatchFormat.TwoVsTwo,
+                seriesLength: SeriesLength.Bo1,
+                playerOneUserId: "t1p1",
+                playerOnePartnerUserId: "t1p2",
+                playerTwoUserId: "t2p1",
+                playerTwoPartnerUserId: "t2p2",
+                rounds: [
+                    expect.objectContaining({
+                        roundNumber: 1,
+                        winnerUserId: "t1p1",
+                        mapName: "McMinnville OR",
+                        playerOneHeroName: "Achilles",
+                        playerOnePartnerHeroName: "Ajax",
+                        playerTwoHeroName: "Alice",
+                        playerTwoPartnerHeroName: "Atalanta",
+                    }),
+                ],
+            }),
+        )
+    })
+
     it("rejects invalid series via service error", async () => {
         vi.mocked(leaderboardService.registerMatch).mockRejectedValue(
             new Error("Series score must reach 2 wins for Bo3"),

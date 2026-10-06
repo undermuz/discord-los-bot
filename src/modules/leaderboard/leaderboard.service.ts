@@ -21,6 +21,7 @@ import { roundRating } from "./rating.util.js"
 import { LeaderboardRoleService } from "./role.service.js"
 import { LeaderboardSeriesService } from "./series.service.js"
 import {
+    isFormatSeriesAllowed,
     LeaderboardTopEntry,
     MatchFormat,
     MatchStatus,
@@ -56,6 +57,12 @@ export class LeaderboardService {
 
     async registerMatch(dto: RegisterMatchDto): Promise<RatingMatch> {
         await this.configService.requireGuildConfig(dto.guildId)
+
+        if (!isFormatSeriesAllowed(dto.format, dto.seriesLength)) {
+            throw new Error(
+                `Series ${dto.seriesLength} is not available for ${dto.format}`,
+            )
+        }
 
         const seriesResult = this.seriesService.deriveSeriesResult(
             dto.playerOneUserId,

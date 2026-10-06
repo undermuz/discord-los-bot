@@ -38,7 +38,7 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("1. McMinnville OR")
         expect(content).toContain("Achilles vs Alice")
         expect(content).toContain("Первый ход: <@w1>")
-        expect(content).toContain("Ожидают подтверждения ✅")
+        expect(content).toContain("Ожидают подтверждения:")
         expect(content).toContain("<@w1>")
         expect(content).toContain("<@l1>")
     })
@@ -98,7 +98,7 @@ describe("LeaderboardDiscordPresenter", () => {
         } as never)
 
         expect(content).toContain("Подтвердили ✅: <@w1>")
-        expect(content).toContain("Ожидают подтверждения ✅: <@l1>")
+        expect(content).toContain("Ожидают подтверждения: <@l1>")
     })
 
     it("shows verified footer", () => {
@@ -159,6 +159,10 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("**Настройка (администратор)**")
         expect(content).toContain("/leaderboard-setup-formats")
         expect(content).toContain("/new-rating-match")
+        expect(content).not.toContain("/new-2x2")
+        expect(content).toContain("/um-1x1-bo1")
+        expect(content).toContain("/um-1x1-bo5")
+        expect(content).toContain("/um-2x2")
         expect(content).toContain("/um-1x1")
         expect(content).toContain("/leaderboard-top")
         expect(content).toContain("/leaderboard-config")

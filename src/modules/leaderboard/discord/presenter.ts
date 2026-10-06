@@ -43,7 +43,7 @@ export class LeaderboardDiscordPresenter {
         )
 
         const lines = [
-            `**Новый рейтинговый матч (${match.format} ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
+            `**Новый рейтинговый матч (${match.format}, ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
             `${this.formatSide(match.winnerUserId, match.winnerPartnerUserId)} vs ${this.formatSide(match.loserUserId, match.loserPartnerUserId)}`,
             `Рейтинг: ${formatRating(winnerRating)} / ${formatRating(loserRating)}`,
             "",
@@ -58,15 +58,18 @@ export class LeaderboardDiscordPresenter {
                 round.playerTwoHeroName,
                 round.playerTwoPartnerHeroName,
             )
-            const hasHeroes = sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
-            const details = hasHeroes
-                ? `   Герои: ${sideOneHeroes} vs ${sideTwoHeroes} | Первый ход: <@${round.firstPlayerUserId}>`
-                : `   Первый ход: <@${round.firstPlayerUserId}>`
+            const hasHeroes =
+                sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
 
             lines.push(
-                `${round.roundNumber}. ${round.mapName} — <@${round.winnerUserId}>`,
-                details,
+                `${round.roundNumber}. ${round.mapName} — 🏆<@${round.winnerUserId}>`,
             )
+
+            if (hasHeroes) {
+                lines.push(`   Герои: ${sideOneHeroes} vs ${sideTwoHeroes}`)
+            }
+
+            lines.push(`   Первый ход: <@${round.firstPlayerUserId}>`)
         }
 
         if (rounds.length > 0) {
@@ -75,6 +78,7 @@ export class LeaderboardDiscordPresenter {
 
         if (match.status === MatchStatus.Verified) {
             lines.push("**Матч верифицирован**")
+
             return lines.join("\n")
         }
 
@@ -82,6 +86,7 @@ export class LeaderboardDiscordPresenter {
             const confirmedMentions = confirmedUsers
                 .map((userId) => `<@${userId}>`)
                 .join(", ")
+
             lines.push(
                 `Подтвердили ${config.verifyEmoji}: ${confirmedMentions}`,
             )
@@ -91,9 +96,7 @@ export class LeaderboardDiscordPresenter {
             const pendingMentions = pendingUsers
                 .map((userId) => `<@${userId}>`)
                 .join(", ")
-            lines.push(
-                `Ожидают подтверждения ${config.verifyEmoji}: ${pendingMentions}`,
-            )
+            lines.push(`Ожидают подтверждения: ${pendingMentions}`)
         } else if (confirmedUsers.length === participantIds.length) {
             lines.push("Все участники подтверждены.")
         }
@@ -195,8 +198,9 @@ export class LeaderboardDiscordPresenter {
             "",
             "**Для участников**",
             "",
-            "• `/new-rating-match` — матч 1x1 или LosEnduranceAutumn2026: `player_1`, `player_2`, `format`, `series` (Bo1, Bo2, Bo3, Bo5). Для каждого раунда — `map_N`, `round_N_winner`, `p1_hero_N`, `p2_hero_N`. Герои не нужны для LosEnduranceAutumn2026. Кто ходил первым: `p1_first_rounds` (например `1,3`). Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
-            "• `/new-2x2` — матч 2x2: четыре игрока и `series` (Bo1, Bo2, Bo3). Для каждого раунда — карта, победитель и герой каждого игрока. Подтверждают все четверо.",
+            "• `/new-rating-match` — матч 1x1: `player_1`, `player_2`, `format`, `series` (Bo1, Bo2, Bo3, Bo5). Для каждого раунда — `map_N`, `round_N_winner`, `p1_hero_N`, `p2_hero_N`. Кто ходил первым: `p1_first_rounds` (например `1,3`). Итог и счёт выводятся автоматически. Оба игрока подтверждают реакцией ✅.",
+            "• `/um-1x1-bo1`, `/um-1x1-bo2`, `/um-1x1-bo3`, `/um-1x1-bo5` — тот же матч 1x1 с уже выбранной серией. Поля раундов только до длины серии.",
+            "• `/um-2x2` — матч 2x2 Bo1: четыре игрока, карта, победитель и герой каждого. Подтверждают все четверо.",
             "• `/um-1x1` — короткий Bo1 для LosEnduranceAutumn2026: `p1`, `p2`, `winner`, `map`. Имена героев не нужны. Первым ходит `p2`.",
             "• `/leaderboard [player]` - посмотреть рейтинг себя или другого игрока.",
             "• `/leaderboard-top [size]` - топ игроков (10, 50 или 100) по основному рейтингу.",

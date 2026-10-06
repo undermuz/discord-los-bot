@@ -7,6 +7,7 @@ import {
     RegisterMatchRoundDto,
     SeriesLength,
     SeriesResult,
+    seriesRoundCount,
 } from "./types.js"
 
 @Injectable()
@@ -14,16 +15,7 @@ export class LeaderboardSeriesService {
     constructor(private readonly catalogService: LeaderboardCatalogService) {}
 
     parseSeriesSize(seriesLength: SeriesLength): number {
-        switch (seriesLength) {
-            case SeriesLength.Bo1:
-                return 1
-            case SeriesLength.Bo2:
-                return 2
-            case SeriesLength.Bo3:
-                return 3
-            case SeriesLength.Bo5:
-                return 5
-        }
+        return seriesRoundCount(seriesLength)
     }
 
     requiredWins(seriesLength: SeriesLength): number {

@@ -13,15 +13,18 @@ import { LeaderboardService } from "../leaderboard.service.js"
 import {
     DEFAULT_TIER_DEFINITIONS,
     DEFAULT_LEADERBOARD_TOP_SIZE,
-    DUEL_MATCH_FORMATS,
+    FixedRegistrationCommand,
     LEADERBOARD_TOP_SIZES,
     formatRequiresHeroes,
+    formatTeamSize,
+    fixedRegistrationCommands,
+    isFormatSeriesAllowed,
     MATCH_FORMATS,
     MatchFormat,
     RegisterMatchRoundDto,
-    SERIES_LENGTHS,
     SeriesLength,
-    TWO_VS_TWO_SERIES_LENGTHS,
+    seriesRoundCount,
+    universalMatchFormats,
 } from "../types.js"
 import { formatRating } from "../rating.util.js"
 import { LeaderboardDiscordRoles } from "./roles.js"
@@ -47,17 +50,19 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         this.discordService.registerCommand("um-1x1", (interaction) =>
             this.commandUm1x1(interaction),
         )
-        this.discordService.registerCommand("new-2x2", (interaction) =>
-            this.commandNew2x2(interaction),
-        )
+        for (const spec of fixedRegistrationCommands()) {
+            this.discordService.registerCommand(spec.name, (interaction) =>
+                this.commandFixedRegistration(interaction, spec),
+            )
+            this.discordService.registerAutocomplete(spec.name, (interaction) =>
+                this.autocompleteMatchFields(interaction),
+            )
+        }
         this.discordService.registerAutocomplete(
             "new-rating-match",
             (interaction) => this.autocompleteMatchFields(interaction),
         )
         this.discordService.registerAutocomplete("um-1x1", (interaction) =>
-            this.autocompleteMatchFields(interaction),
-        )
-        this.discordService.registerAutocomplete("new-2x2", (interaction) =>
             this.autocompleteMatchFields(interaction),
         )
         this.discordService.registerCommand(
@@ -148,8 +153,8 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         const playerTwo = options.getUser("player_2", true)
 
         if (
-            !DUEL_MATCH_FORMATS.includes(format) ||
-            !SERIES_LENGTHS.includes(seriesLength)
+            !universalMatchFormats().includes(format) ||
+            !isFormatSeriesAllowed(format, seriesLength)
         ) {
             await interaction.reply({
                 content: "Invalid match format",
@@ -164,7 +169,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 format,
                 playerOne.id,
                 playerTwo.id,
-                5,
+                seriesRoundCount(seriesLength),
             )
 
             await this.postRegisteredMatch(interaction, {
@@ -220,15 +225,16 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                     playerTwoHeroName: "",
                     playerOnePartnerHeroName: "",
                     playerTwoPartnerHeroName: "",
-                    firstPlayerUserId: playerOne.id,
+                    firstPlayerUserId: playerTwo.id,
                 },
             ],
             context: "um-1x1",
         })
     }
 
-    private async commandNew2x2(
+    private async commandFixedRegistration(
         interaction: ChatInputCommandInteraction,
+        spec: FixedRegistrationCommand,
     ): Promise<void> {
         const { guild, channel, options } = interaction
 
@@ -240,42 +246,59 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             return
         }
 
-        const seriesLength = options.getString("series", true) as SeriesLength
-        const teamOnePlayer = options.getUser("team1_p1", true)
-        const teamOnePartner = options.getUser("team1_p2", true)
-        const teamTwoPlayer = options.getUser("team2_p1", true)
-        const teamTwoPartner = options.getUser("team2_p2", true)
-
-        if (!TWO_VS_TWO_SERIES_LENGTHS.includes(seriesLength)) {
-            await interaction.reply({
-                content: "Invalid match series",
-                ephemeral: true,
-            })
-            return
-        }
+        const maxRounds = seriesRoundCount(spec.seriesLength)
 
         try {
-            const rounds = this.collectTeamRounds(
+            if (formatTeamSize(spec.format) === 2) {
+                const teamOnePlayer = options.getUser("team1_p1", true)
+                const teamOnePartner = options.getUser("team1_p2", true)
+                const teamTwoPlayer = options.getUser("team2_p1", true)
+                const teamTwoPartner = options.getUser("team2_p2", true)
+                const rounds = this.collectTeamRounds(
+                    interaction,
+                    teamOnePlayer.id,
+                    teamTwoPlayer.id,
+                    maxRounds,
+                )
+
+                await this.postRegisteredMatch(interaction, {
+                    format: spec.format,
+                    seriesLength: spec.seriesLength,
+                    playerOneUserId: teamOnePlayer.id,
+                    playerOnePartnerUserId: teamOnePartner.id,
+                    playerTwoUserId: teamTwoPlayer.id,
+                    playerTwoPartnerUserId: teamTwoPartner.id,
+                    rounds,
+                    context: spec.name,
+                })
+                return
+            }
+
+            const playerOne = options.getUser("player_1", true)
+            const playerTwo = options.getUser("player_2", true)
+            const rounds = this.collectRounds(
                 interaction,
-                teamOnePlayer.id,
-                teamTwoPlayer.id,
+                spec.format,
+                playerOne.id,
+                playerTwo.id,
+                maxRounds,
             )
 
             await this.postRegisteredMatch(interaction, {
-                format: MatchFormat.TwoVsTwo,
-                seriesLength,
-                playerOneUserId: teamOnePlayer.id,
-                playerOnePartnerUserId: teamOnePartner.id,
-                playerTwoUserId: teamTwoPlayer.id,
-                playerTwoPartnerUserId: teamTwoPartner.id,
+                format: spec.format,
+                seriesLength: spec.seriesLength,
+                playerOneUserId: playerOne.id,
+                playerOnePartnerUserId: null,
+                playerTwoUserId: playerTwo.id,
+                playerTwoPartnerUserId: null,
                 rounds,
-                context: "new-2x2",
+                context: spec.name,
             })
         } catch (error) {
             await replyWithUserError(interaction, {
                 error,
                 logger: this.logger,
-                context: "new-2x2",
+                context: spec.name,
             })
         }
     }
@@ -823,14 +846,15 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         interaction: ChatInputCommandInteraction,
         teamOnePrimaryUserId: string,
         teamTwoPrimaryUserId: string,
+        maxRounds: number,
     ): RegisterMatchRoundDto[] {
         const rounds: RegisterMatchRoundDto[] = []
         const teamOneFirstRounds = this.parsePlayerOneFirstRounds(
             interaction.options.getString("team1_first_rounds"),
-            3,
+            maxRounds,
         )
 
-        for (let roundNumber = 1; roundNumber <= 3; roundNumber++) {
+        for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber++) {
             const mapName = interaction.options.getString(`map_${roundNumber}`)
             const winner = interaction.options.getUser(
                 `round_${roundNumber}_winner`,

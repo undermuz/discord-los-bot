@@ -31,11 +31,97 @@ export const DUEL_MATCH_FORMATS = [
     MatchFormat.OneVsOne,
     MatchFormat.LosEnduranceAutumn2026,
 ]
-export const TWO_VS_TWO_SERIES_LENGTHS = [
-    SeriesLength.Bo1,
-    SeriesLength.Bo2,
-    SeriesLength.Bo3,
+export const FORMAT_SERIES: Record<MatchFormat, readonly SeriesLength[]> = {
+    [MatchFormat.OneVsOne]: [
+        SeriesLength.Bo1,
+        SeriesLength.Bo2,
+        SeriesLength.Bo3,
+        SeriesLength.Bo5,
+    ],
+    [MatchFormat.TwoVsTwo]: [SeriesLength.Bo1],
+    [MatchFormat.LosEnduranceAutumn2026]: [SeriesLength.Bo1],
+}
+export const UNIQ_FORMATS: readonly MatchFormat[] = [
+    MatchFormat.LosEnduranceAutumn2026,
 ]
+
+export function isUniqueFormat(format: MatchFormat): boolean {
+    return UNIQ_FORMATS.includes(format)
+}
+
+export function universalMatchFormats(): MatchFormat[] {
+    return DUEL_MATCH_FORMATS.filter((format) => !isUniqueFormat(format))
+}
+
+export function universalMatchSeries(): SeriesLength[] {
+    const series = new Set<SeriesLength>()
+
+    for (const format of universalMatchFormats()) {
+        for (const seriesLength of FORMAT_SERIES[format]) {
+            series.add(seriesLength)
+        }
+    }
+
+    return [...series]
+}
+
+export function isFormatSeriesAllowed(
+    format: MatchFormat,
+    seriesLength: SeriesLength,
+): boolean {
+    return FORMAT_SERIES[format].includes(seriesLength)
+}
+
+export interface FixedRegistrationCommand {
+    name: string
+    format: MatchFormat
+    seriesLength: SeriesLength
+}
+
+export function fixedRegistrationCommands(): FixedRegistrationCommand[] {
+    const commands: FixedRegistrationCommand[] = []
+
+    for (const format of MATCH_FORMATS) {
+        if (isUniqueFormat(format)) {
+            continue
+        }
+
+        const series = FORMAT_SERIES[format]
+        const [onlySeries] = series
+
+        if (series.length === 1 && onlySeries) {
+            commands.push({
+                name: `um-${format}`,
+                format,
+                seriesLength: onlySeries,
+            })
+            continue
+        }
+
+        for (const seriesLength of series) {
+            commands.push({
+                name: `um-${format}-${seriesLength.toLowerCase()}`,
+                format,
+                seriesLength,
+            })
+        }
+    }
+
+    return commands
+}
+
+export function seriesRoundCount(seriesLength: SeriesLength): number {
+    switch (seriesLength) {
+        case SeriesLength.Bo1:
+            return 1
+        case SeriesLength.Bo2:
+            return 2
+        case SeriesLength.Bo3:
+            return 3
+        case SeriesLength.Bo5:
+            return 5
+    }
+}
 
 export interface RegisterMatchRoundDto {
     roundNumber: number

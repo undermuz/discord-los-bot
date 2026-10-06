@@ -126,6 +126,23 @@ describe("LeaderboardService", () => {
         )
     })
 
+    it("rejects a series that the format does not allow", async () => {
+        await expect(
+            service.registerMatch({
+                guildId: "g1",
+                channelId: "c1",
+                registeredByUserId: "player-a",
+                format: MatchFormat.TwoVsTwo,
+                seriesLength: SeriesLength.Bo3,
+                playerOnePartnerUserId: "player-c",
+                playerTwoPartnerUserId: "player-d",
+                playerOneUserId: "player-a",
+                playerTwoUserId: "player-b",
+                rounds: [],
+            }),
+        ).rejects.toThrow("Series Bo3 is not available for 2x2")
+    })
+
     it("auto-confirms registrant participant on register", async () => {
         await service.registerMatch({
             guildId: "g1",
@@ -265,9 +282,9 @@ describe("LeaderboardService", () => {
                 channelId: "c1",
                 registeredByUserId: "player-a",
                 format: MatchFormat.OneVsOne,
-            seriesLength: SeriesLength.Bo3,
-            playerOnePartnerUserId: null,
-            playerTwoPartnerUserId: null,
+                seriesLength: SeriesLength.Bo3,
+                playerOnePartnerUserId: null,
+                playerTwoPartnerUserId: null,
                 playerOneUserId: "player-a",
                 playerTwoUserId: "player-b",
                 rounds: [
@@ -277,8 +294,8 @@ describe("LeaderboardService", () => {
                         mapName: "McMinnville OR",
                         playerOneHeroName: "Achilles",
                         playerTwoHeroName: "Alice",
-                    playerOnePartnerHeroName: "",
-                    playerTwoPartnerHeroName: "",
+                        playerOnePartnerHeroName: "",
+                        playerTwoPartnerHeroName: "",
                         firstPlayerUserId: "player-a",
                     },
                 ],
@@ -382,9 +399,7 @@ describe("LeaderboardService", () => {
 
         expect(mainRating).toBe(1000)
         expect(playerRatingRepository.save).toHaveBeenCalledWith(
-            expect.arrayContaining([
-                expect.objectContaining({ rating: 1000 }),
-            ]),
+            expect.arrayContaining([expect.objectContaining({ rating: 1000 })]),
         )
     })
 
@@ -406,9 +421,7 @@ describe("LeaderboardService", () => {
 
         expect(mainRating).toBe(1250)
         expect(playerRatingRepository.save).toHaveBeenCalledWith(
-            expect.arrayContaining([
-                expect.objectContaining({ rating: 1250 }),
-            ]),
+            expect.arrayContaining([expect.objectContaining({ rating: 1250 })]),
         )
     })
 
