@@ -61,8 +61,11 @@ export class LeaderboardDiscordPresenter {
             const hasHeroes =
                 sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
 
+            const roundNumber =
+                rounds.length === 1 ? "" : `${round.roundNumber}. `
+
             lines.push(
-                `${round.roundNumber}. ${round.mapName} — 🏆<@${round.winnerUserId}>`,
+                `${roundNumber}${round.mapName} — 🏆<@${round.winnerUserId}>`,
             )
 
             if (hasHeroes) {
