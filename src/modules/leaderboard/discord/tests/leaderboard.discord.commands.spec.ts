@@ -132,7 +132,7 @@ describe("LeaderboardDiscordCommands", () => {
                 round_1_winner: playerOne,
                 p1_hero_1: "Achilles",
                 p2_hero_1: "Alice",
-                p1_first_rounds: "1",
+                first_moves: "p2",
             },
             {
                 user: playerOne,
@@ -213,7 +213,7 @@ describe("LeaderboardDiscordCommands", () => {
                         playerTwoHeroName: "",
                         playerOnePartnerHeroName: "",
                         playerTwoPartnerHeroName: "",
-                        firstPlayerUserId: "l1",
+                        firstPlayerUserId: "w1",
                     },
                 ],
             }),
@@ -300,6 +300,115 @@ describe("LeaderboardDiscordCommands", () => {
         )
     })
 
+    it("registers per-round first players from um-1x1-bo3", async () => {
+        const playerOne = createMockUser({ id: "w1" })
+        const playerTwo = createMockUser({ id: "l1" })
+        const send = vi.fn().mockResolvedValue({
+            id: "msg-1",
+            url: "https://discord.com/message/1",
+            react: vi.fn(),
+        })
+        const interaction = createMockChatInputInteraction(
+            "um-1x1-bo3",
+            {
+                player_1: playerOne,
+                player_2: playerTwo,
+                map_1: "McMinnville OR",
+                round_1_winner: playerTwo,
+                p1_hero_1: "Achilles",
+                p2_hero_1: "Alice",
+                round_1_first: playerTwo,
+                map_2: "Albany OR",
+                round_2_winner: playerOne,
+                p1_hero_2: "Ajax",
+                p2_hero_2: "Atalanta",
+                round_2_first: playerOne,
+            },
+            {
+                user: playerOne,
+                channel: {
+                    id: "c1",
+                    isTextBased: () => true,
+                    send,
+                },
+                guild: { id: "g1" },
+            },
+        )
+
+        await handlers.get("um-1x1-bo3")!(interaction as never)
+
+        expect(leaderboardService.registerMatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                format: MatchFormat.OneVsOne,
+                seriesLength: SeriesLength.Bo3,
+                rounds: [
+                    expect.objectContaining({
+                        roundNumber: 1,
+                        firstPlayerUserId: "l1",
+                    }),
+                    expect.objectContaining({
+                        roundNumber: 2,
+                        firstPlayerUserId: "w1",
+                    }),
+                ],
+            }),
+        )
+    })
+
+    it("reads ordered first moves for a Bo5 series", async () => {
+        const playerOne = createMockUser({ id: "w1" })
+        const playerTwo = createMockUser({ id: "l1" })
+        const send = vi.fn().mockResolvedValue({
+            id: "msg-1",
+            url: "https://discord.com/message/1",
+            react: vi.fn(),
+        })
+        const interaction = createMockChatInputInteraction(
+            "um-1x1-bo5",
+            {
+                player_1: playerOne,
+                player_2: playerTwo,
+                map_1: "McMinnville OR",
+                round_1_winner: playerOne,
+                p1_hero_1: "Achilles",
+                p2_hero_1: "Alice",
+                first_moves: "p2, p1",
+                map_2: "Albany OR",
+                round_2_winner: playerTwo,
+                p1_hero_2: "Ajax",
+                p2_hero_2: "Atalanta",
+            },
+            {
+                user: playerOne,
+                channel: {
+                    id: "c1",
+                    isTextBased: () => true,
+                    send,
+                },
+                guild: { id: "g1" },
+            },
+        )
+
+        await handlers.get("um-1x1-bo5")!(interaction as never)
+
+        expect(leaderboardService.registerMatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                format: MatchFormat.OneVsOne,
+                seriesLength: SeriesLength.Bo5,
+                rounds: [
+                    expect.objectContaining({
+                        roundNumber: 1,
+                        firstPlayerUserId: "l1",
+                    }),
+                    expect.objectContaining({
+                        roundNumber: 2,
+                        firstPlayerUserId: "w1",
+                    }),
+                ],
+            }),
+        )
+    })
+
     it("registers a 2x2 Bo1 match from um-2x2", async () => {
         const teamOnePlayer = createMockUser({ id: "t1p1" })
         const teamOnePartner = createMockUser({ id: "t1p2" })
@@ -354,6 +463,7 @@ describe("LeaderboardDiscordCommands", () => {
                         playerOnePartnerHeroName: "Ajax",
                         playerTwoHeroName: "Alice",
                         playerTwoPartnerHeroName: "Atalanta",
+                        firstPlayerUserId: "t1p1",
                     }),
                 ],
             }),
@@ -376,6 +486,7 @@ describe("LeaderboardDiscordCommands", () => {
                 round_1_winner: createMockUser({ id: "u1" }),
                 p1_hero_1: "Achilles",
                 p2_hero_1: "Alice",
+                first_moves: "p1",
             },
             {
                 channel: {
@@ -389,6 +500,7 @@ describe("LeaderboardDiscordCommands", () => {
 
         await handlers.get("new-rating-match")!(interaction as never)
 
+        expect(leaderboardService.registerMatch).toHaveBeenCalled()
         expect(interaction.reply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: DISCORD_USER_ERROR_MESSAGE,

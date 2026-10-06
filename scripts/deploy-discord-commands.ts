@@ -7,14 +7,18 @@ import {
 } from "discord.js"
 import {
     DEFAULT_TIER_DEFINITIONS,
+    duelUsesPerRoundFirstPlayer,
     fixedRegistrationCommands,
     formatTeamSize,
     LEADERBOARD_TOP_SIZES,
     MATCH_FORMATS,
+    SeriesLength,
     seriesRoundCount,
     universalMatchFormats,
     universalMatchSeries,
 } from "../src/modules/leaderboard/types"
+
+type FirstMoveFields = "none" | "per-round" | "ordered"
 
 const { DISCORD_TOKEN, DISCORD_APP_ID, APP_ID } = process.env
 const discordAppId = DISCORD_APP_ID ?? APP_ID
@@ -75,6 +79,7 @@ for (let i = 2; i <= 25; i++) {
 function addDuelRoundOptions(
     command: SlashCommandBuilder,
     roundCount: number,
+    firstMoves: FirstMoveFields,
 ): void {
     for (let i = 1; i <= roundCount; i++) {
         command.addStringOption((option) =>
@@ -104,16 +109,26 @@ function addDuelRoundOptions(
                 .setRequired(false)
                 .setAutocomplete(true),
         )
+        if (firstMoves === "per-round") {
+            command.addUserOption((option) =>
+                option
+                    .setName(`round_${i}_first`)
+                    .setDescription(`Who moved first in round ${i}`)
+                    .setRequired(i === 1),
+            )
+        }
     }
 
-    command.addStringOption((option) =>
-        option
-            .setName("p1_first_rounds")
-            .setDescription(
-                "Rounds where player 1 moved first (e.g. 1,3). Others: player 2",
-            )
-            .setRequired(false),
-    )
+    if (firstMoves === "ordered") {
+        command.addStringOption((option) =>
+            option
+                .setName("first_moves")
+                .setDescription(
+                    "Who moved first each round, in order: p1 or p2. Example: p1, p2, p1",
+                )
+                .setRequired(false),
+        )
+    }
 }
 
 function addTeamRoundOptions(
@@ -163,32 +178,28 @@ function addTeamRoundOptions(
                 .setAutocomplete(true),
         )
     }
-
-    command.addStringOption((option) =>
-        option
-            .setName("team1_first_rounds")
-            .setDescription(
-                "Rounds where team 1 player 1 moved first (e.g. 1). Others: team 2",
-            )
-            .setRequired(false),
-    )
 }
 
 function buildFixedRegistrationCommands(): SlashCommandBuilder[] {
     return fixedRegistrationCommands().map((spec) => {
+        const roundCount = seriesRoundCount(spec.seriesLength)
+        const playerOneMovesFirst = spec.seriesLength === SeriesLength.Bo1
         const command = new SlashCommandBuilder()
             .setName(spec.name)
             .setDescription(
-                `Register a ${spec.format} ${spec.seriesLength} rating match`,
+                playerOneMovesFirst
+                    ? formatTeamSize(spec.format) === 2
+                        ? "Register a 2x2 Bo1 rating match. Team 1 player 1 moves first."
+                        : "Register a 1x1 Bo1 rating match. Player 1 moves first."
+                    : `Register a ${spec.format} ${spec.seriesLength} rating match`,
             )
-        const roundCount = seriesRoundCount(spec.seriesLength)
 
         if (formatTeamSize(spec.format) === 2) {
             command
                 .addUserOption((option) =>
                     option
                         .setName("team1_p1")
-                        .setDescription("Team 1 player 1")
+                        .setDescription("Team 1 player 1 (moves first)")
                         .setRequired(true),
                 )
                 .addUserOption((option) =>
@@ -213,11 +224,21 @@ function buildFixedRegistrationCommands(): SlashCommandBuilder[] {
             return command
         }
 
+        const firstMoves: FirstMoveFields = playerOneMovesFirst
+            ? "none"
+            : duelUsesPerRoundFirstPlayer(roundCount, 2)
+              ? "per-round"
+              : "ordered"
+
         command
             .addUserOption((option) =>
                 option
                     .setName("player_1")
-                    .setDescription("First player")
+                    .setDescription(
+                        playerOneMovesFirst
+                            ? "Player 1 (moves first)"
+                            : "First player",
+                    )
                     .setRequired(true),
             )
             .addUserOption((option) =>
@@ -226,7 +247,7 @@ function buildFixedRegistrationCommands(): SlashCommandBuilder[] {
                     .setDescription("Second player")
                     .setRequired(true),
             )
-        addDuelRoundOptions(command, roundCount)
+        addDuelRoundOptions(command, roundCount, firstMoves)
         return command
     })
 }
@@ -283,7 +304,9 @@ const commands = [
     (() => {
         const newRatingMatchCmd = new SlashCommandBuilder()
             .setName("new-rating-match")
-            .setDescription("Register a new 1v1 rating match series")
+            .setDescription(
+                "Register a 1x1 series. Bo1: player 1 always moves first.",
+            )
             .addStringOption((option) =>
                 option
                     .setName("format")
@@ -327,54 +350,26 @@ const commands = [
             ),
         )
 
-        for (let i = 1; i <= universalRoundCount; i++) {
-            newRatingMatchCmd.addStringOption((option) =>
-                option
-                    .setName(`map_${i}`)
-                    .setDescription(`Map name for round ${i}`)
-                    .setRequired(i === 1)
-                    .setAutocomplete(true),
-            )
-            newRatingMatchCmd.addUserOption((option) =>
-                option
-                    .setName(`round_${i}_winner`)
-                    .setDescription(`Winner of round ${i}`)
-                    .setRequired(false),
-            )
-            newRatingMatchCmd.addStringOption((option) =>
-                option
-                    .setName(`p1_hero_${i}`)
-                    .setDescription(`Player 1 hero for round ${i}`)
-                    .setRequired(false)
-                    .setAutocomplete(true),
-            )
-            newRatingMatchCmd.addStringOption((option) =>
-                option
-                    .setName(`p2_hero_${i}`)
-                    .setDescription(`Player 2 hero for round ${i}`)
-                    .setRequired(false)
-                    .setAutocomplete(true),
-            )
-        }
-
-        newRatingMatchCmd.addStringOption((option) =>
-            option
-                .setName("p1_first_rounds")
-                .setDescription(
-                    "Rounds where player 1 moved first (e.g. 1,3). Others: player 2",
-                )
-                .setRequired(false),
+        const firstMoves: FirstMoveFields = duelUsesPerRoundFirstPlayer(
+            universalRoundCount,
+            4,
         )
+            ? "per-round"
+            : "ordered"
+
+        addDuelRoundOptions(newRatingMatchCmd, universalRoundCount, firstMoves)
 
         return newRatingMatchCmd
     })(),
     new SlashCommandBuilder()
         .setName("um-1x1")
-        .setDescription("Register a LosEnduranceAutumn2026 rating match")
+        .setDescription(
+            "Register a LosEnduranceAutumn2026 rating match. p1 moves first.",
+        )
         .addUserOption((option) =>
             option
                 .setName("p1")
-                .setDescription("First player")
+                .setDescription("First player (moves first)")
                 .setRequired(true),
         )
         .addUserOption((option) =>

@@ -17,6 +17,7 @@ import {
     LEADERBOARD_TOP_SIZES,
     formatRequiresHeroes,
     formatTeamSize,
+    duelUsesPerRoundFirstPlayer,
     fixedRegistrationCommands,
     isFormatSeriesAllowed,
     MATCH_FORMATS,
@@ -25,10 +26,16 @@ import {
     SeriesLength,
     seriesRoundCount,
     universalMatchFormats,
+    universalMatchSeries,
 } from "../types.js"
 import { formatRating } from "../rating.util.js"
 import { LeaderboardDiscordRoles } from "./roles.js"
 import { LeaderboardDiscordPresenter } from "./presenter.js"
+
+type FirstMoveMode = "player-one" | "per-round" | "ordered"
+
+const FIXED_DUEL_LEADING_OPTIONS = 2
+const UNIVERSAL_MATCH_LEADING_OPTIONS = 4
 
 @Injectable()
 export class LeaderboardDiscordCommands implements OnModuleInit {
@@ -170,6 +177,11 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 playerOne.id,
                 playerTwo.id,
                 seriesRoundCount(seriesLength),
+                this.firstMoveMode(
+                    seriesLength,
+                    this.universalMatchRoundCount(),
+                    UNIVERSAL_MATCH_LEADING_OPTIONS,
+                ),
             )
 
             await this.postRegisteredMatch(interaction, {
@@ -225,7 +237,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                     playerTwoHeroName: "",
                     playerOnePartnerHeroName: "",
                     playerTwoPartnerHeroName: "",
-                    firstPlayerUserId: playerTwo.id,
+                    firstPlayerUserId: playerOne.id,
                 },
             ],
             context: "um-1x1",
@@ -282,6 +294,11 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 playerOne.id,
                 playerTwo.id,
                 maxRounds,
+                this.firstMoveMode(
+                    spec.seriesLength,
+                    maxRounds,
+                    FIXED_DUEL_LEADING_OPTIONS,
+                ),
             )
 
             await this.postRegisteredMatch(interaction, {
@@ -783,12 +800,15 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         playerOneUserId: string,
         playerTwoUserId: string,
         maxRounds: number,
+        firstMoveMode: FirstMoveMode,
     ): RegisterMatchRoundDto[] {
         const rounds: RegisterMatchRoundDto[] = []
-        const playerOneFirstRounds = this.parsePlayerOneFirstRounds(
-            interaction.options.getString("p1_first_rounds"),
-            maxRounds,
-        )
+        const orderedFirstMoves =
+            firstMoveMode === "ordered"
+                ? this.parseOrderedFirstMoves(
+                      interaction.options.getString("first_moves"),
+                  )
+                : []
 
         for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber++) {
             const mapName = interaction.options.getString(`map_${roundNumber}`)
@@ -801,12 +821,17 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             const playerTwoHeroName = interaction.options.getString(
                 `p2_hero_${roundNumber}`,
             )
+            const firstPlayer =
+                firstMoveMode === "per-round"
+                    ? interaction.options.getUser(`round_${roundNumber}_first`)
+                    : null
 
             if (
                 !mapName &&
                 !winner &&
                 !playerOneHeroName &&
-                !playerTwoHeroName
+                !playerTwoHeroName &&
+                !firstPlayer
             ) {
                 continue
             }
@@ -833,9 +858,14 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 playerTwoHeroName: playerTwoHeroName ?? "",
                 playerOnePartnerHeroName: "",
                 playerTwoPartnerHeroName: "",
-                firstPlayerUserId: playerOneFirstRounds.has(roundNumber)
-                    ? playerOneUserId
-                    : playerTwoUserId,
+                firstPlayerUserId: this.resolveFirstPlayer(
+                    firstMoveMode,
+                    roundNumber,
+                    playerOneUserId,
+                    playerTwoUserId,
+                    firstPlayer?.id ?? null,
+                    orderedFirstMoves,
+                ),
             })
         }
 
@@ -845,14 +875,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
     private collectTeamRounds(
         interaction: ChatInputCommandInteraction,
         teamOnePrimaryUserId: string,
-        teamTwoPrimaryUserId: string,
+        _teamTwoPrimaryUserId: string,
         maxRounds: number,
     ): RegisterMatchRoundDto[] {
         const rounds: RegisterMatchRoundDto[] = []
-        const teamOneFirstRounds = this.parsePlayerOneFirstRounds(
-            interaction.options.getString("team1_first_rounds"),
-            maxRounds,
-        )
 
         for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber++) {
             const mapName = interaction.options.getString(`map_${roundNumber}`)
@@ -904,34 +930,87 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 playerOnePartnerHeroName: teamOnePartnerHero,
                 playerTwoHeroName: teamTwoHero,
                 playerTwoPartnerHeroName: teamTwoPartnerHero,
-                firstPlayerUserId: teamOneFirstRounds.has(roundNumber)
-                    ? teamOnePrimaryUserId
-                    : teamTwoPrimaryUserId,
+                firstPlayerUserId: teamOnePrimaryUserId,
             })
         }
 
         return rounds
     }
 
-    private parsePlayerOneFirstRounds(
-        raw: string | null,
-        maxRounds: number,
-    ): Set<number> {
-        if (!raw?.trim()) {
-            return new Set()
+    private universalMatchRoundCount(): number {
+        return Math.max(
+            ...universalMatchSeries().map((seriesLength) =>
+                seriesRoundCount(seriesLength),
+            ),
+        )
+    }
+
+    private firstMoveMode(
+        seriesLength: SeriesLength,
+        roundCountOnCommand: number,
+        leadingOptions: number,
+    ): FirstMoveMode {
+        if (seriesLength === SeriesLength.Bo1) {
+            return "player-one"
         }
 
-        return new Set(
-            raw
-                .split(",")
-                .map((value) => Number.parseInt(value.trim(), 10))
-                .filter(
-                    (roundNumber) =>
-                        Number.isInteger(roundNumber) &&
-                        roundNumber >= 1 &&
-                        roundNumber <= maxRounds,
-                ),
-        )
+        return duelUsesPerRoundFirstPlayer(roundCountOnCommand, leadingOptions)
+            ? "per-round"
+            : "ordered"
+    }
+
+    private resolveFirstPlayer(
+        firstMoveMode: FirstMoveMode,
+        roundNumber: number,
+        playerOneUserId: string,
+        playerTwoUserId: string,
+        firstPlayerUserId: string | null,
+        orderedFirstMoves: Array<"p1" | "p2">,
+    ): string {
+        if (firstMoveMode === "player-one") {
+            return playerOneUserId
+        }
+
+        if (firstMoveMode === "per-round") {
+            if (
+                firstPlayerUserId !== playerOneUserId &&
+                firstPlayerUserId !== playerTwoUserId
+            ) {
+                throw new Error(
+                    `Round ${roundNumber} requires who moved first, and it must be one of the two players`,
+                )
+            }
+
+            return firstPlayerUserId
+        }
+
+        const token = orderedFirstMoves[roundNumber - 1]
+
+        if (!token) {
+            throw new Error(
+                `Round ${roundNumber} is missing from first_moves. List p1 or p2 for each round, in order`,
+            )
+        }
+
+        return token === "p1" ? playerOneUserId : playerTwoUserId
+    }
+
+    private parseOrderedFirstMoves(raw: string | null): Array<"p1" | "p2"> {
+        if (!raw?.trim()) {
+            return []
+        }
+
+        return raw.split(",").map((token) => {
+            const value = token.trim().toLowerCase()
+
+            if (value === "p1" || value === "p2") {
+                return value
+            }
+
+            throw new Error(
+                `Unknown first player "${token.trim()}". Use p1 or p2`,
+            )
+        })
     }
 
     private isAdmin(interaction: ChatInputCommandInteraction): boolean {

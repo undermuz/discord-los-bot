@@ -123,6 +123,20 @@ export function seriesRoundCount(seriesLength: SeriesLength): number {
     }
 }
 
+const SLASH_OPTION_LIMIT = 25
+const DUEL_OPTIONS_PER_ROUND_WITH_FIRST_PLAYER = 5
+
+export function duelUsesPerRoundFirstPlayer(
+    roundCount: number,
+    leadingOptions: number,
+): boolean {
+    return (
+        leadingOptions +
+            roundCount * DUEL_OPTIONS_PER_ROUND_WITH_FIRST_PLAYER <=
+        SLASH_OPTION_LIMIT
+    )
+}
+
 export interface RegisterMatchRoundDto {
     roundNumber: number
     winnerUserId: string
