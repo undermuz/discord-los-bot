@@ -7,6 +7,7 @@ import {
 } from "discord.js"
 import { replyWithUserError } from "../../../platforms/discord/discord-interaction.util.js"
 import { DiscordService } from "../../../platforms/discord/discord.service.js"
+import { LeaderboardCatalogService } from "../catalog.service.js"
 import { LeaderboardConfigService } from "../config.service.js"
 import { LeaderboardService } from "../leaderboard.service.js"
 import {
@@ -22,8 +23,6 @@ import {
     SeriesLength,
     TWO_VS_TWO_SERIES_LENGTHS,
 } from "../types.js"
-import { getHeroAutocompleteChoices } from "../heroes.js"
-import { getMapAutocompleteChoices } from "../maps.js"
 import { formatRating } from "../rating.util.js"
 import { LeaderboardDiscordRoles } from "./roles.js"
 import { LeaderboardDiscordPresenter } from "./presenter.js"
@@ -36,6 +35,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         private readonly discordService: DiscordService,
         private readonly leaderboardService: LeaderboardService,
         private readonly configService: LeaderboardConfigService,
+        private readonly catalogService: LeaderboardCatalogService,
         private readonly rolesAdapter: LeaderboardDiscordRoles,
         private readonly presenter: LeaderboardDiscordPresenter,
     ) {}
@@ -98,6 +98,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             "leaderboard-freeze-player",
             (interaction) => this.commandFreezePlayer(interaction),
         )
+        this.discordService.registerCommand(
+            "leaderboard-reset-cache",
+            (interaction) => this.commandResetCatalogCache(interaction),
+        )
     }
 
     //У slash-команды максимум 25 опций.
@@ -109,12 +113,16 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         const query = typeof focused.value === "string" ? focused.value : ""
 
         if (focused.name.startsWith("map")) {
-            await interaction.respond(getMapAutocompleteChoices(query))
+            await interaction.respond(
+                this.catalogService.getMapAutocompleteChoices(query),
+            )
             return
         }
 
         if (focused.name.includes("hero")) {
-            await interaction.respond(getHeroAutocompleteChoices(query))
+            await interaction.respond(
+                this.catalogService.getHeroAutocompleteChoices(query),
+            )
             return
         }
 
@@ -212,8 +220,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                     playerTwoHeroName: "",
                     playerOnePartnerHeroName: "",
                     playerTwoPartnerHeroName: "",
-                    // Same default as /new-rating-match without p1_first_rounds.
-                    firstPlayerUserId: playerTwo.id,
+                    firstPlayerUserId: playerOne.id,
                 },
             ],
             context: "um-1x1",
@@ -646,6 +653,33 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 error,
                 logger: this.logger,
                 context: "leaderboard-reset-stats",
+            })
+        }
+    }
+
+    private async commandResetCatalogCache(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        if (!this.isAdmin(interaction)) {
+            await interaction.reply({
+                content: "Administrator permission required",
+                ephemeral: true,
+            })
+            return
+        }
+
+        try {
+            this.catalogService.resetCache()
+
+            await interaction.reply({
+                content: "Maps and heroes cache reloaded",
+                ephemeral: true,
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "leaderboard-reset-cache",
             })
         }
     }

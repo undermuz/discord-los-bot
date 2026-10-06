@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { PermissionFlagsBits } from "discord.js"
 import { DISCORD_USER_ERROR_MESSAGE } from "../../../../platforms/discord/discord-interaction.util.js"
 import {
     createMockChatInputInteraction,
@@ -8,6 +9,7 @@ import {
     DiscordCommandHandler,
     DiscordService,
 } from "../../../../platforms/discord/discord.service.js"
+import { LeaderboardCatalogService } from "../../catalog.service.js"
 import { LeaderboardConfigService } from "../../config.service.js"
 import { LeaderboardService } from "../../leaderboard.service.js"
 import { MatchFormat, SeriesLength } from "../../types.js"
@@ -19,6 +21,7 @@ describe("LeaderboardDiscordCommands", () => {
     let handlers: Map<string, DiscordCommandHandler>
     let leaderboardService: LeaderboardService
     let configService: LeaderboardConfigService
+    let catalogService: LeaderboardCatalogService
 
     beforeEach(() => {
         handlers = new Map()
@@ -84,6 +87,12 @@ describe("LeaderboardDiscordCommands", () => {
             ]),
         } as unknown as LeaderboardConfigService
 
+        catalogService = {
+            resetCache: vi.fn(),
+            getMapAutocompleteChoices: vi.fn().mockReturnValue([]),
+            getHeroAutocompleteChoices: vi.fn().mockReturnValue([]),
+        } as unknown as LeaderboardCatalogService
+
         const discordService = {
             registerCommand: vi.fn(
                 (name: string, handler: DiscordCommandHandler) => {
@@ -97,6 +106,7 @@ describe("LeaderboardDiscordCommands", () => {
             discordService,
             leaderboardService,
             configService,
+            catalogService,
             { syncMembers: vi.fn() } as unknown as LeaderboardDiscordRoles,
             new LeaderboardDiscordPresenter(leaderboardService),
         )
@@ -284,6 +294,53 @@ describe("LeaderboardDiscordCommands", () => {
                 ephemeral: true,
             }),
         )
+    })
+
+    it("reloads the maps and heroes cache for an administrator", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-reset-cache",
+            {},
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: (flag: bigint) =>
+                            flag === PermissionFlagsBits.Administrator,
+                    },
+                },
+            },
+        )
+
+        await handlers.get("leaderboard-reset-cache")!(interaction as never)
+
+        expect(catalogService.resetCache).toHaveBeenCalledOnce()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Maps and heroes cache reloaded",
+            ephemeral: true,
+        })
+    })
+
+    it("rejects cache reset without administrator permission", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-reset-cache",
+            {},
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: () => false,
+                    },
+                },
+            },
+        )
+
+        await handlers.get("leaderboard-reset-cache")!(interaction as never)
+
+        expect(catalogService.resetCache).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Administrator permission required",
+            ephemeral: true,
+        })
     })
 
     it("shows welcome guide in channel", async () => {

@@ -448,6 +448,10 @@ const commands = [
                 .setRequired(false),
         ),
     new SlashCommandBuilder()
+        .setName("leaderboard-reset-cache")
+        .setDescription("Reload the cached maps and heroes lists")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder()
         .setName("leaderboard-freeze-player")
         .setDescription(
             "Force-freeze a player: freeze role, re-calibration, rating preserved",

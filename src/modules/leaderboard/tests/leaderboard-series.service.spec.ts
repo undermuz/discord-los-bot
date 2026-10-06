@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
+import { LeaderboardCatalogService } from "../catalog.service.js"
 import { LeaderboardSeriesService } from "../series.service.js"
 import { MatchFormat, SeriesLength } from "../types.js"
 
 describe("LeaderboardSeriesService", () => {
-    const service = new LeaderboardSeriesService()
+    const service = new LeaderboardSeriesService(
+        new LeaderboardCatalogService(),
+    )
     const playerA = "player-a"
     const playerB = "player-b"
     const partnerA = "partner-a"

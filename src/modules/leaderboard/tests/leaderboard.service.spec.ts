@@ -10,6 +10,7 @@ import {
     PlayerState,
 } from "../../../database/entities/player-rating.entity.js"
 import { LeaderboardAggregateService } from "../aggregate.service.js"
+import { LeaderboardCatalogService } from "../catalog.service.js"
 import { LeaderboardConfigService } from "../config.service.js"
 import { LeaderboardRatingService } from "../rating.service.js"
 import { LeaderboardRoleService } from "../role.service.js"
@@ -121,7 +122,7 @@ describe("LeaderboardService", () => {
             new LeaderboardRatingService(),
             new LeaderboardAggregateService(playerRatingRepository),
             new LeaderboardRoleService(),
-            new LeaderboardSeriesService(),
+            new LeaderboardSeriesService(new LeaderboardCatalogService()),
         )
     })
 

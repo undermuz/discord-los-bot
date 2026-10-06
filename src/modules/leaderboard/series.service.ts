@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common"
-import { isKnownHeroName } from "./heroes.js"
-import { isKnownMapName } from "./maps.js"
+import { LeaderboardCatalogService } from "./catalog.service.js"
 import {
     formatRequiresHeroes,
     formatTeamSize,
@@ -12,6 +11,8 @@ import {
 
 @Injectable()
 export class LeaderboardSeriesService {
+    constructor(private readonly catalogService: LeaderboardCatalogService) {}
+
     parseSeriesSize(seriesLength: SeriesLength): number {
         switch (seriesLength) {
             case SeriesLength.Bo1:
@@ -154,7 +155,7 @@ export class LeaderboardSeriesService {
                 )
             }
 
-            if (!isKnownMapName(round.mapName)) {
+            if (!this.catalogService.isKnownMapName(round.mapName)) {
                 throw new Error(`Unknown map for round ${round.roundNumber}`)
             }
 
@@ -250,10 +251,7 @@ export class LeaderboardSeriesService {
         }))
     }
 
-    private sideIds(
-        userId: string,
-        partnerUserId: string | null,
-    ): Set<string> {
+    private sideIds(userId: string, partnerUserId: string | null): Set<string> {
         return new Set(
             [userId, partnerUserId].filter((id): id is string => Boolean(id)),
         )
@@ -300,7 +298,7 @@ export class LeaderboardSeriesService {
                 )
             }
 
-            if (hero.name && !isKnownHeroName(hero.name)) {
+            if (hero.name && !this.catalogService.isKnownHeroName(hero.name)) {
                 throw new Error(
                     `Unknown hero for ${hero.label} in round ${round.roundNumber}`,
                 )

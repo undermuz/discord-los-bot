@@ -17,6 +17,7 @@ import { LeaderboardDiscordGateway } from "./discord/gateway.js"
 import { LeaderboardDiscordPresenter } from "./discord/presenter.js"
 import { LeaderboardDiscordRoles } from "./discord/roles.js"
 import { LeaderboardAggregateService } from "./aggregate.service.js"
+import { LeaderboardCatalogService } from "./catalog.service.js"
 import { LeaderboardConfigService } from "./config.service.js"
 import { LeaderboardInactivityService } from "./inactivity.service.js"
 import { LeaderboardRatingService } from "./rating.service.js"
@@ -38,6 +39,7 @@ import { createLeaderboardComposer } from "./tg/leaderboard.tg.update.js"
         ]),
     ],
     providers: [
+        LeaderboardCatalogService,
         LeaderboardConfigService,
         LeaderboardRatingService,
         LeaderboardAggregateService,
