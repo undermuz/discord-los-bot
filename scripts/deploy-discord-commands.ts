@@ -3,6 +3,7 @@ import {
     REST,
     Routes,
     SlashCommandBuilder,
+    SlashCommandOptionsOnlyBuilder,
     PermissionFlagsBits,
 } from "discord.js"
 import {
@@ -77,7 +78,7 @@ for (let i = 2; i <= 25; i++) {
 }
 
 function addDuelRoundOptions(
-    command: SlashCommandBuilder,
+    command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder,
     roundCount: number,
     firstMoves: FirstMoveFields,
 ): void {
@@ -89,6 +90,14 @@ function addDuelRoundOptions(
                 .setRequired(i === 1)
                 .setAutocomplete(true),
         )
+        if (firstMoves === "per-round") {
+            command.addUserOption((option) =>
+                option
+                    .setName(`round_${i}_first`)
+                    .setDescription(`Who moved first in round ${i}`)
+                    .setRequired(i === 1),
+            )
+        }
         command.addUserOption((option) =>
             option
                 .setName(`round_${i}_winner`)
@@ -109,14 +118,6 @@ function addDuelRoundOptions(
                 .setRequired(false)
                 .setAutocomplete(true),
         )
-        if (firstMoves === "per-round") {
-            command.addUserOption((option) =>
-                option
-                    .setName(`round_${i}_first`)
-                    .setDescription(`Who moved first in round ${i}`)
-                    .setRequired(i === 1),
-            )
-        }
     }
 
     if (firstMoves === "ordered") {
@@ -132,7 +133,7 @@ function addDuelRoundOptions(
 }
 
 function addTeamRoundOptions(
-    command: SlashCommandBuilder,
+    command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder,
     roundCount: number,
 ): void {
     for (let i = 1; i <= roundCount; i++) {
