@@ -604,7 +604,7 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         const fromRaw = interaction.options.getString("from")
         const from = fromRaw ? this.parseFromDate(fromRaw) : undefined
 
-        if (fromRaw && !from) {
+        if (from === null) {
             await interaction.reply({
                 content: "Дата должна быть в формате ГГГГ-ММ-ДД или ДД.ММ.ГГГГ",
                 ephemeral: true,
