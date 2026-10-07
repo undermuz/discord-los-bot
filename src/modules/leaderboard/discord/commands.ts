@@ -628,10 +628,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             )
             const [first, ...rest] = messages
 
-            await interaction.reply({ content: first })
+            await interaction.reply({ content: first, ephemeral: true })
 
             for (const content of rest) {
-                await interaction.followUp({ content })
+                await interaction.followUp({ content, ephemeral: true })
             }
         } catch (error) {
             await replyWithUserError(interaction, {

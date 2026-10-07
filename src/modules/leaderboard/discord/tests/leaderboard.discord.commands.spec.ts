@@ -694,6 +694,7 @@ describe("LeaderboardDiscordCommands", () => {
         expect(interaction.reply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.stringContaining("ожидает подтверждения"),
+                ephemeral: true,
             }),
         )
         expect(interaction.followUp).not.toHaveBeenCalled()
