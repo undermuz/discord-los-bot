@@ -62,6 +62,12 @@ export class RatingMatch {
 
     @Column({ type: "datetime", nullable: true })
     verifiedAt: Date | null
+
+    @Column({ type: "datetime", nullable: true })
+    cancelledAt: Date | null
+
+    @Column({ type: "varchar", nullable: true })
+    cancelledByUserId: string | null
 }
 
 @Entity("match_confirmations")
@@ -118,4 +124,29 @@ export class RatingMatchRound {
 
     @Column()
     firstPlayerUserId: string
+}
+
+@Entity("rating_match_player_changes")
+@Unique(["matchId", "discordUserId"])
+export class RatingMatchPlayerChange {
+    @PrimaryGeneratedColumn()
+    id: number
+
+    @Column()
+    matchId: number
+
+    @Column()
+    discordUserId: string
+
+    @Column({ type: "varchar" })
+    format: MatchFormat
+
+    @Column({ type: "real" })
+    ratingDelta: number
+
+    @Column({ default: false })
+    calibrationCompletedBefore: boolean
+
+    @Column({ type: "datetime", nullable: true })
+    lastPlayedAtBefore: Date | null
 }

@@ -7,6 +7,7 @@ import { PlayerRating, PlayerState } from "./entities/player-rating.entity.js"
 import {
     MatchConfirmation,
     RatingMatch,
+    RatingMatchPlayerChange,
     RatingMatchRound,
 } from "./entities/rating-match.entity.js"
 import { RatingTierRole } from "./entities/rating-tier-role.entity.js"
@@ -21,6 +22,7 @@ import { OpenTopRatingTier1738291600000 } from "./migrations/1738291600000-OpenT
 import { UpdateCalibrationAndFreeze1738291700000 } from "./migrations/1738291700000-UpdateCalibrationAndFreeze.js"
 import { ImportEmojiToRolesFromDb21738291800000 } from "./migrations/1738291800000-ImportEmojiToRolesFromDb2.js"
 import { SplitFormatAndSeries1738291900000 } from "./migrations/1738291900000-SplitFormatAndSeries.js"
+import { AddMatchCancellation1738292000000 } from "./migrations/1738292000000-AddMatchCancellation.js"
 
 const leaderboardEntities = [
     LeaderboardGuildConfig,
@@ -30,6 +32,7 @@ const leaderboardEntities = [
     RatingMatch,
     MatchConfirmation,
     RatingMatchRound,
+    RatingMatchPlayerChange,
 ]
 
 @Module({
@@ -56,6 +59,7 @@ const leaderboardEntities = [
                     UpdateCalibrationAndFreeze1738291700000,
                     ImportEmojiToRolesFromDb21738291800000,
                     SplitFormatAndSeries1738291900000,
+                    AddMatchCancellation1738292000000,
                 ],
                 migrationsRun: true,
                 synchronize: false,

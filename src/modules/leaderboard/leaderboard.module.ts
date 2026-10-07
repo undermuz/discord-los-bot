@@ -8,6 +8,7 @@ import {
 import {
     MatchConfirmation,
     RatingMatch,
+    RatingMatchPlayerChange,
     RatingMatchRound,
 } from "../../database/entities/rating-match.entity.js"
 import { RatingTierRole } from "../../database/entities/rating-tier-role.entity.js"
@@ -36,6 +37,7 @@ import { createLeaderboardComposer } from "./tg/leaderboard.tg.update.js"
             RatingMatch,
             MatchConfirmation,
             RatingMatchRound,
+            RatingMatchPlayerChange,
         ]),
     ],
     providers: [

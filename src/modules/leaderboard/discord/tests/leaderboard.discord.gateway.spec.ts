@@ -1,3 +1,4 @@
+import { PermissionFlagsBits } from "discord.js"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
     createMockDiscordClient,
@@ -26,6 +27,7 @@ describe("LeaderboardDiscordGateway", () => {
         leaderboardService = {
             findMatchByMessage: vi.fn(),
             confirmMatch: vi.fn(),
+            cancelMatch: vi.fn(),
             getRequiredParticipants: vi.fn(
                 (match: {
                     winnerUserId: string
@@ -45,6 +47,7 @@ describe("LeaderboardDiscordGateway", () => {
         const configService = {
             getGuildConfig: vi.fn().mockResolvedValue({
                 verifyEmoji: "✅",
+                rejectEmoji: "❌",
             }),
         } as unknown as LeaderboardConfigService
 
@@ -102,7 +105,10 @@ describe("LeaderboardDiscordGateway", () => {
     })
 
     it("updates message when match is partially confirmed", async () => {
-        const reaction = createMockReaction({ guild: { id: "g1" }, emojiName: "✅" })
+        const reaction = createMockReaction({
+            guild: { id: "g1" },
+            emojiName: "✅",
+        })
         const user = createMockUser({ id: "w1" })
 
         vi.mocked(leaderboardService.findMatchByMessage).mockResolvedValue({
@@ -125,11 +131,112 @@ describe("LeaderboardDiscordGateway", () => {
     })
 
     it("ignores reactions with wrong emoji", async () => {
-        const reaction = createMockReaction({ emojiName: "❌" })
+        const reaction = createMockReaction({ emojiName: "👍" })
         const user = createMockUser({ id: "l1" })
 
         await emitAsync(client, "messageReactionAdd", reaction, user)
 
         expect(leaderboardService.confirmMatch).not.toHaveBeenCalled()
+        expect(leaderboardService.cancelMatch).not.toHaveBeenCalled()
+    })
+
+    it("passes isAdmin false and skips the message when cancel is rejected", async () => {
+        const guild = guildWithAdmin(false)
+        const reaction = createMockReaction({ guild, emojiName: "❌" })
+        const user = createMockUser({ id: "l1" })
+
+        vi.mocked(leaderboardService.cancelMatch).mockResolvedValue(null)
+
+        await emitAsync(client, "messageReactionAdd", reaction, user)
+
+        expect(leaderboardService.cancelMatch).toHaveBeenCalledWith(
+            "g1",
+            reaction.message.id,
+            "l1",
+            false,
+        )
+        expect(leaderboardService.confirmMatch).not.toHaveBeenCalled()
+        expect(presenter.refreshMatchMessage).not.toHaveBeenCalled()
+        expect(rolesAdapter.syncMembers).not.toHaveBeenCalled()
+    })
+
+    it("refreshes a cancelled match without syncing roles when rating is unchanged", async () => {
+        const guild = guildWithAdmin(false)
+        const reaction = createMockReaction({ guild, emojiName: "❌" })
+        const user = createMockUser({ id: "w1" })
+
+        vi.mocked(leaderboardService.cancelMatch).mockResolvedValue({
+            match: {
+                id: 4,
+                winnerUserId: "w1",
+                loserUserId: "l1",
+                winnerPartnerUserId: null,
+                loserPartnerUserId: null,
+            },
+            ratingReverted: false,
+        } as never)
+
+        await emitAsync(client, "messageReactionAdd", reaction, user)
+
+        expect(leaderboardService.cancelMatch).toHaveBeenCalledWith(
+            "g1",
+            reaction.message.id,
+            "w1",
+            false,
+        )
+        expect(presenter.refreshMatchMessage).toHaveBeenCalledWith(
+            reaction.message,
+            4,
+        )
+        expect(rolesAdapter.syncMembers).not.toHaveBeenCalled()
+    })
+
+    it("passes isAdmin true and syncs roles when the rating was reverted", async () => {
+        const guild = guildWithAdmin(true)
+        const reaction = createMockReaction({ guild, emojiName: "❌" })
+        const user = createMockUser({ id: "admin-1" })
+
+        vi.mocked(leaderboardService.cancelMatch).mockResolvedValue({
+            match: {
+                id: 4,
+                winnerUserId: "w1",
+                loserUserId: "l1",
+                winnerPartnerUserId: null,
+                loserPartnerUserId: null,
+            },
+            ratingReverted: true,
+        } as never)
+
+        await emitAsync(client, "messageReactionAdd", reaction, user)
+
+        expect(leaderboardService.cancelMatch).toHaveBeenCalledWith(
+            "g1",
+            reaction.message.id,
+            "admin-1",
+            true,
+        )
+        expect(presenter.refreshMatchMessage).toHaveBeenCalledWith(
+            reaction.message,
+            4,
+        )
+        expect(rolesAdapter.syncMembers).toHaveBeenCalledWith(
+            "g1",
+            ["w1", "l1"],
+            expect.any(Function),
+        )
     })
 })
+
+function guildWithAdmin(isAdmin: boolean) {
+    return {
+        id: "g1",
+        members: {
+            fetch: vi.fn().mockResolvedValue({
+                permissions: {
+                    has: (flag: bigint) =>
+                        isAdmin && flag === PermissionFlagsBits.Administrator,
+                },
+            }),
+        },
+    }
+}

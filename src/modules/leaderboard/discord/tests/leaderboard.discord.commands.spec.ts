@@ -69,6 +69,7 @@ describe("LeaderboardDiscordCommands", () => {
                 guildId: "g1",
                 favoriteFormats: ["1x1", "2x2"],
                 verifyEmoji: "✅",
+                rejectEmoji: "❌",
                 calibrationRoleId: "role-cal",
                 freezeRoleId: "role-freeze",
                 calibrationMatchThreshold: 10,

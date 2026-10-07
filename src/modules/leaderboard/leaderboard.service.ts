@@ -4,6 +4,7 @@ import { Repository } from "typeorm"
 import {
     MatchConfirmation,
     RatingMatch,
+    RatingMatchPlayerChange,
     RatingMatchRound,
 } from "../../database/entities/rating-match.entity.js"
 import {
@@ -44,6 +45,8 @@ export class LeaderboardService {
         private readonly confirmationRepository: Repository<MatchConfirmation>,
         @InjectRepository(RatingMatchRound)
         private readonly roundRepository: Repository<RatingMatchRound>,
+        @InjectRepository(RatingMatchPlayerChange)
+        private readonly playerChangeRepository: Repository<RatingMatchPlayerChange>,
         @InjectRepository(PlayerRating)
         private readonly playerRatingRepository: Repository<PlayerRating>,
         @InjectRepository(PlayerState)
@@ -223,6 +226,23 @@ export class LeaderboardService {
         const loserAverage = this.averageRating(
             loserRatings.map((rating) => rating.rating),
         )
+        const ratingSnapshots = new Map<
+            string,
+            {
+                rating: number
+                calibrationCompleted: boolean
+                lastPlayedAt: Date | null
+            }
+        >()
+
+        for (const playerRating of [...winnerRatings, ...loserRatings]) {
+            ratingSnapshots.set(playerRating.discordUserId, {
+                rating: playerRating.rating,
+                calibrationCompleted:
+                    playerRating.calibrationCompleted ?? false,
+                lastPlayedAt: playerRating.lastPlayedAt ?? null,
+            })
+        }
 
         if (winnerRatings.length === 1 && loserRatings.length === 1) {
             const winnerRating = winnerRatings[0]
@@ -331,16 +351,89 @@ export class LeaderboardService {
             )
         }
 
-        await this.playerRatingRepository.save(updatedRatings)
+        const changes = updatedRatings.map((playerRating) => {
+            const before = ratingSnapshots.get(playerRating.discordUserId)
+
+            if (!before) {
+                throw new Error(
+                    `Missing rating snapshot for ${playerRating.discordUserId}`,
+                )
+            }
+
+            return {
+                matchId: match.id,
+                discordUserId: playerRating.discordUserId,
+                format: match.format,
+                ratingDelta: roundRating(playerRating.rating - before.rating),
+                calibrationCompletedBefore: before.calibrationCompleted,
+                lastPlayedAtBefore: before.lastPlayedAt,
+            }
+        })
+
+        const savedMatch = await this.matchRepository.manager.transaction(
+            async (manager) => {
+                await manager.save(updatedRatings)
+                await manager.save(
+                    changes.map((change) =>
+                        manager.create(RatingMatchPlayerChange, change),
+                    ),
+                )
+                match.status = MatchStatus.Verified
+                match.verifiedAt = now
+
+                return manager.save(match)
+            },
+        )
 
         for (const userId of this.getRequiredParticipants(match)) {
             await this.unfreezePlayer(match.guildId, userId)
         }
 
-        match.status = MatchStatus.Verified
-        match.verifiedAt = now
+        return savedMatch
+    }
 
-        return this.matchRepository.save(match)
+    async findMatchByMessageAnyStatus(
+        guildId: string,
+        messageId: string,
+    ): Promise<RatingMatch | null> {
+        return this.matchRepository.findOne({
+            where: { guildId, messageId },
+        })
+    }
+
+    async cancelMatch(
+        guildId: string,
+        messageId: string,
+        userId: string,
+        isAdmin: boolean,
+    ): Promise<{ match: RatingMatch; ratingReverted: boolean } | null> {
+        const match = await this.findMatchByMessageAnyStatus(guildId, messageId)
+
+        if (!match || match.status === MatchStatus.Cancelled) {
+            return null
+        }
+
+        const isParticipant =
+            this.getRequiredParticipants(match).includes(userId)
+
+        if (match.status === MatchStatus.Pending) {
+            if (!isAdmin && !isParticipant) {
+                return null
+            }
+
+            this.markCancelled(match, userId)
+
+            return {
+                match: await this.matchRepository.save(match),
+                ratingReverted: false,
+            }
+        }
+
+        if (match.status !== MatchStatus.Verified || !isAdmin) {
+            return null
+        }
+
+        return this.revertVerifiedMatch(match, userId)
     }
 
     async getPlayerRoleState(
@@ -641,6 +734,104 @@ export class LeaderboardService {
                     right.totalVerifiedMatches - left.totalVerifiedMatches,
             )
             .slice(0, size)
+    }
+
+    private async revertVerifiedMatch(
+        match: RatingMatch,
+        userId: string,
+    ): Promise<{ match: RatingMatch; ratingReverted: boolean }> {
+        const config = await this.configService.requireGuildConfig(
+            match.guildId,
+        )
+
+        return this.playerChangeRepository.manager.transaction(
+            async (manager) => {
+                const changes = await manager.find(RatingMatchPlayerChange, {
+                    where: { matchId: match.id },
+                })
+
+                if (changes.length === 0) {
+                    this.logger.warn(
+                        `Match ${match.id} has no stored rating changes; cancelling without rating rollback`,
+                    )
+                    this.markCancelled(match, userId)
+
+                    return {
+                        match: await manager.save(match),
+                        ratingReverted: false,
+                    }
+                }
+
+                for (const change of changes) {
+                    const playerRating = await manager.findOne(PlayerRating, {
+                        where: {
+                            guildId: match.guildId,
+                            discordUserId: change.discordUserId,
+                            format: change.format,
+                        },
+                    })
+
+                    if (!playerRating) {
+                        continue
+                    }
+
+                    playerRating.rating = this.ratingService.applyDelta(
+                        playerRating.rating,
+                        -change.ratingDelta,
+                    )
+                    playerRating.verifiedMatchCount = Math.max(
+                        0,
+                        playerRating.verifiedMatchCount - 1,
+                    )
+
+                    if (
+                        !change.calibrationCompletedBefore &&
+                        playerRating.verifiedMatchCount <
+                            config.calibrationMatchThreshold
+                    ) {
+                        playerRating.calibrationCompleted = false
+                    }
+
+                    if (
+                        this.isSameInstant(
+                            playerRating.lastPlayedAt,
+                            match.verifiedAt,
+                        )
+                    ) {
+                        playerRating.lastPlayedAt = change.lastPlayedAtBefore
+                    }
+
+                    await manager.save(playerRating)
+                }
+
+                this.markCancelled(match, userId)
+
+                return {
+                    match: await manager.save(match),
+                    ratingReverted: true,
+                }
+            },
+        )
+    }
+
+    private markCancelled(match: RatingMatch, userId: string): void {
+        match.status = MatchStatus.Cancelled
+        match.cancelledAt = new Date()
+        match.cancelledByUserId = userId
+    }
+
+    private isSameInstant(
+        left: Date | string | null,
+        right: Date | string | null,
+    ): boolean {
+        if (left === null || right === null) {
+            return false
+        }
+
+        const leftTime = new Date(left).getTime()
+        const rightTime = new Date(right).getTime()
+
+        return Number.isFinite(leftTime) && leftTime === rightTime
     }
 
     private async isMatchFullyConfirmed(match: RatingMatch): Promise<boolean> {

@@ -11,6 +11,9 @@ export class LeaderboardGuildConfig {
     @Column({ default: "✅" })
     verifyEmoji: string
 
+    @Column({ default: "❌" })
+    rejectEmoji: string
+
     @Column({ type: "varchar", nullable: true })
     calibrationRoleId: string | null
 

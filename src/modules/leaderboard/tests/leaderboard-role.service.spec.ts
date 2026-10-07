@@ -8,6 +8,7 @@ describe("LeaderboardRoleService", () => {
         guildId: "g1",
         favoriteFormats: ["1x1"],
         verifyEmoji: "✅",
+        rejectEmoji: "❌",
         calibrationRoleId: "cal",
         freezeRoleId: "freeze",
         calibrationMatchThreshold: 10,

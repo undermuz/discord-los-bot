@@ -1,8 +1,10 @@
+import { Logger } from "@nestjs/common"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { createMockRepository } from "../../../../test/helpers/typeorm.mock.js"
 import {
     MatchConfirmation,
     RatingMatch,
+    RatingMatchPlayerChange,
     RatingMatchRound,
 } from "../../../database/entities/rating-match.entity.js"
 import {
@@ -27,6 +29,9 @@ describe("LeaderboardService", () => {
     let roundRepository: ReturnType<
         typeof createMockRepository<RatingMatchRound>
     >
+    let playerChangeRepository: ReturnType<
+        typeof createMockRepository<RatingMatchPlayerChange>
+    >
     let playerRatingRepository: ReturnType<
         typeof createMockRepository<PlayerRating>
     >
@@ -35,68 +40,104 @@ describe("LeaderboardService", () => {
     >
     let savedRounds: RatingMatchRound[]
     let savedConfirmations: MatchConfirmation[]
+    let transactionSaves: unknown[]
 
     beforeEach(() => {
         matchRepository = createMockRepository<RatingMatch>()
         confirmationRepository = createMockRepository<MatchConfirmation>()
         roundRepository = createMockRepository<RatingMatchRound>()
+        playerChangeRepository = createMockRepository<RatingMatchPlayerChange>()
         playerRatingRepository = createMockRepository<PlayerRating>()
         playerStateRepository = createMockRepository<PlayerState>()
         savedRounds = []
         savedConfirmations = []
+        transactionSaves = []
+        playerChangeRepository.find.mockResolvedValue([])
+        matchRepository.save.mockImplementation((entity) => entity)
 
-        Object.defineProperty(matchRepository, "manager", {
-            value: {
-                transaction: vi.fn(
-                    async (
-                        callback: (manager: {
-                            create: (
-                                _entity: unknown,
-                                data: Record<string, unknown>,
-                            ) => Record<string, unknown>
-                            save: (
+        const dataSourceManager = {
+            transaction: vi.fn(
+                async (
+                    callback: (manager: {
+                        create: (
+                            _entity: unknown,
+                            data: Record<string, unknown>,
+                        ) => Record<string, unknown>
+                        save: (
+                            entity:
+                                | Record<string, unknown>
+                                | Record<string, unknown>[],
+                        ) => Promise<unknown>
+                        find: (
+                            entity: unknown,
+                            options?: object,
+                        ) => Promise<unknown>
+                        findOne: (
+                            entity: unknown,
+                            options?: object,
+                        ) => Promise<unknown>
+                    }) => Promise<unknown>,
+                ) => {
+                    const manager = {
+                        create: (
+                            _entity: unknown,
+                            data: Record<string, unknown>,
+                        ) => data,
+                        save: vi.fn(
+                            (
                                 entity:
                                     | Record<string, unknown>
                                     | Record<string, unknown>[],
-                            ) => Promise<unknown>
-                        }) => Promise<RatingMatch>,
-                    ) => {
-                        const manager = {
-                            create: (
-                                _entity: unknown,
-                                data: Record<string, unknown>,
-                            ) => data,
-                            save: vi.fn(
-                                async (
-                                    entity:
-                                        | Record<string, unknown>
-                                        | Record<string, unknown>[],
-                                ) => {
-                                    if (Array.isArray(entity)) {
-                                        savedRounds.push(
-                                            ...(entity as RatingMatchRound[]),
-                                        )
-                                        return entity
-                                    }
+                            ) => {
+                                transactionSaves.push(entity)
 
-                                    if ("autoConfirmed" in entity) {
-                                        savedConfirmations.push(
-                                            entity as MatchConfirmation,
-                                        )
-                                    }
+                                if (Array.isArray(entity)) {
+                                    savedRounds.push(
+                                        ...(entity as RatingMatchRound[]),
+                                    )
+                                    return entity
+                                }
 
-                                    return {
-                                        id: 1,
-                                        ...entity,
-                                    }
-                                },
-                            ),
-                        }
+                                if ("autoConfirmed" in entity) {
+                                    savedConfirmations.push(
+                                        entity as MatchConfirmation,
+                                    )
+                                }
 
-                        return callback(manager)
-                    },
-                ),
-            },
+                                return {
+                                    id: 1,
+                                    ...entity,
+                                }
+                            },
+                        ),
+                        find: vi.fn((entity: unknown, options?: object) => {
+                            if (entity === RatingMatchPlayerChange) {
+                                return playerChangeRepository.find(options as never)
+                            }
+
+                            return []
+                        }),
+                        findOne: vi.fn((entity: unknown, options?: object) => {
+                            if (entity === PlayerRating) {
+                                return playerRatingRepository.findOne(
+                                    options as never,
+                                )
+                            }
+
+                            return null
+                        }),
+                    }
+
+                    return callback(manager)
+                },
+            ),
+        }
+
+        Object.defineProperty(matchRepository, "manager", {
+            value: dataSourceManager,
+        })
+        Object.defineProperty(playerChangeRepository, "manager", {
+            value: dataSourceManager,
         })
 
         const configService = {
@@ -104,6 +145,7 @@ describe("LeaderboardService", () => {
                 guildId: "g1",
                 favoriteFormats: ["1x1"],
                 verifyEmoji: "✅",
+                rejectEmoji: "❌",
                 calibrationRoleId: "cal",
                 freezeRoleId: "freeze",
                 calibrationMatchThreshold: 10,
@@ -116,6 +158,7 @@ describe("LeaderboardService", () => {
             matchRepository,
             confirmationRepository,
             roundRepository,
+            playerChangeRepository,
             playerRatingRepository,
             playerStateRepository,
             configService,
@@ -273,6 +316,43 @@ describe("LeaderboardService", () => {
 
         expect(result.status).toBe(MatchStatus.Verified)
         expect(playerRatingRepository.save).toHaveBeenCalled()
+
+        const changeRows = transactionSaves.find(
+            (saved): saved is Array<Record<string, unknown>> =>
+                Array.isArray(saved) &&
+                saved.some(
+                    (row) =>
+                        !!row &&
+                        typeof row === "object" &&
+                        "ratingDelta" in row,
+                ),
+        )
+
+        expect(changeRows).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    matchId: 1,
+                    discordUserId: "winner",
+                    format: MatchFormat.OneVsOne,
+                    calibrationCompletedBefore: false,
+                    lastPlayedAtBefore: null,
+                }),
+                expect.objectContaining({
+                    matchId: 1,
+                    discordUserId: "loser",
+                    format: MatchFormat.OneVsOne,
+                    calibrationCompletedBefore: false,
+                    lastPlayedAtBefore: null,
+                }),
+            ]),
+        )
+        expect(
+            changeRows?.every(
+                (row) =>
+                    typeof row.ratingDelta === "number" &&
+                    row.ratingDelta !== 0,
+            ),
+        ).toBe(true)
     })
 
     it("rejects invalid series rounds", async () => {
@@ -534,5 +614,202 @@ describe("LeaderboardService", () => {
                 }),
             ]),
         )
+    })
+
+    function pendingMatch(status = MatchStatus.Pending): RatingMatch {
+        return {
+            id: 7,
+            guildId: "g1",
+            channelId: "c1",
+            messageId: "m1",
+            format: MatchFormat.OneVsOne,
+            seriesLength: SeriesLength.Bo1,
+            registeredByUserId: "winner",
+            winnerUserId: "winner",
+            loserUserId: "loser",
+            winnerPartnerUserId: null,
+            loserPartnerUserId: null,
+            winnerScore: 1,
+            loserScore: 0,
+            status,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            verifiedAt:
+                status === MatchStatus.Verified
+                    ? new Date("2026-01-02T00:00:00.000Z")
+                    : null,
+            cancelledAt: null,
+            cancelledByUserId: null,
+        }
+    }
+
+    it("lets a participant cancel a pending match without touching ratings", async () => {
+        const match = pendingMatch()
+        matchRepository.findOne.mockResolvedValue(match)
+
+        const result = await service.cancelMatch("g1", "m1", "winner", false)
+
+        expect(result).toEqual({
+            match: expect.objectContaining({
+                status: MatchStatus.Cancelled,
+                cancelledByUserId: "winner",
+                cancelledAt: expect.any(Date),
+            }),
+            ratingReverted: false,
+        })
+        expect(playerRatingRepository.save).not.toHaveBeenCalled()
+        expect(playerChangeRepository.find).not.toHaveBeenCalled()
+    })
+
+    it("lets an admin cancel a pending match", async () => {
+        matchRepository.findOne.mockResolvedValue(pendingMatch())
+
+        const result = await service.cancelMatch("g1", "m1", "admin-1", true)
+
+        expect(result?.match.status).toBe(MatchStatus.Cancelled)
+        expect(result?.match.cancelledByUserId).toBe("admin-1")
+        expect(result?.ratingReverted).toBe(false)
+    })
+
+    it("rejects cancellation of a pending match by anyone else", async () => {
+        matchRepository.findOne.mockResolvedValue(pendingMatch())
+
+        const result = await service.cancelMatch("g1", "m1", "stranger", false)
+
+        expect(result).toBeNull()
+        expect(matchRepository.save).not.toHaveBeenCalled()
+    })
+
+    it("rejects cancellation of a verified match by a participant who is not an admin", async () => {
+        matchRepository.findOne.mockResolvedValue(
+            pendingMatch(MatchStatus.Verified),
+        )
+
+        const result = await service.cancelMatch("g1", "m1", "winner", false)
+
+        expect(result).toBeNull()
+        expect(matchRepository.manager.transaction).not.toHaveBeenCalled()
+    })
+
+    it("reverts stored rating changes when an admin cancels a verified match", async () => {
+        const verifiedAt = new Date("2026-01-02T00:00:00.000Z")
+        const previousPlayedAt = new Date("2025-06-01T00:00:00.000Z")
+        const laterPlayedAt = new Date("2026-03-01T00:00:00.000Z")
+        const match = pendingMatch(MatchStatus.Verified)
+        match.verifiedAt = verifiedAt
+        const winnerRating = {
+            guildId: "g1",
+            discordUserId: "winner",
+            format: MatchFormat.OneVsOne,
+            rating: 1015.5,
+            verifiedMatchCount: 10,
+            calibrationCompleted: true,
+            lastPlayedAt: verifiedAt,
+        }
+        const loserRating = {
+            guildId: "g1",
+            discordUserId: "loser",
+            format: MatchFormat.OneVsOne,
+            rating: 984.5,
+            verifiedMatchCount: 10,
+            calibrationCompleted: true,
+            lastPlayedAt: laterPlayedAt,
+        }
+
+        matchRepository.findOne.mockResolvedValue(match)
+        playerChangeRepository.find.mockResolvedValue([
+            {
+                matchId: 7,
+                discordUserId: "winner",
+                format: MatchFormat.OneVsOne,
+                ratingDelta: 15.5,
+                calibrationCompletedBefore: true,
+                lastPlayedAtBefore: previousPlayedAt,
+            },
+            {
+                matchId: 7,
+                discordUserId: "loser",
+                format: MatchFormat.OneVsOne,
+                ratingDelta: -15.5,
+                calibrationCompletedBefore: false,
+                lastPlayedAtBefore: null,
+            },
+        ])
+        playerRatingRepository.findOne.mockImplementation((options) => {
+            const discordUserId = (
+                options as { where?: { discordUserId?: string } }
+            ).where?.discordUserId
+
+            if (discordUserId === "winner") {
+                return winnerRating
+            }
+
+            if (discordUserId === "loser") {
+                return loserRating
+            }
+
+            return null
+        })
+
+        const result = await service.cancelMatch("g1", "m1", "admin-1", true)
+
+        expect(result?.ratingReverted).toBe(true)
+        expect(result?.match).toEqual(
+            expect.objectContaining({
+                status: MatchStatus.Cancelled,
+                cancelledByUserId: "admin-1",
+            }),
+        )
+        expect(winnerRating).toEqual(
+            expect.objectContaining({
+                rating: 1000,
+                verifiedMatchCount: 9,
+                calibrationCompleted: true,
+                lastPlayedAt: previousPlayedAt,
+            }),
+        )
+        expect(loserRating).toEqual(
+            expect.objectContaining({
+                rating: 1000,
+                verifiedMatchCount: 9,
+                calibrationCompleted: false,
+                lastPlayedAt: laterPlayedAt,
+            }),
+        )
+    })
+
+    it("cancels a verified match without rollback when no rating changes were stored", async () => {
+        const warn = vi
+            .spyOn(Logger.prototype, "warn")
+            .mockImplementation(() => undefined)
+        const match = pendingMatch(MatchStatus.Verified)
+        matchRepository.findOne.mockResolvedValue(match)
+        playerChangeRepository.find.mockResolvedValue([])
+
+        const result = await service.cancelMatch("g1", "m1", "admin-1", true)
+
+        expect(result).toEqual({
+            match: expect.objectContaining({
+                status: MatchStatus.Cancelled,
+                cancelledByUserId: "admin-1",
+            }),
+            ratingReverted: false,
+        })
+        expect(playerRatingRepository.findOne).not.toHaveBeenCalled()
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining("no stored rating changes"),
+        )
+        warn.mockRestore()
+    })
+
+    it("returns null when the match is already cancelled", async () => {
+        matchRepository.findOne.mockResolvedValue(
+            pendingMatch(MatchStatus.Cancelled),
+        )
+
+        const result = await service.cancelMatch("g1", "m1", "admin-1", true)
+
+        expect(result).toBeNull()
+        expect(matchRepository.save).not.toHaveBeenCalled()
+        expect(matchRepository.manager.transaction).not.toHaveBeenCalled()
     })
 })

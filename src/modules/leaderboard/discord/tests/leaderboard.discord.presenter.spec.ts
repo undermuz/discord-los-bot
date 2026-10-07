@@ -35,7 +35,7 @@ describe("LeaderboardDiscordPresenter", () => {
         } as never)
 
         expect(content).toContain("1:0")
-        expect(content).toContain("1. McMinnville OR")
+        expect(content).toContain("McMinnville OR")
         expect(content).toContain("Achilles vs Alice")
         expect(content).toContain("Первый ход: <@w1>")
         expect(content).toContain("Ожидают подтверждения:")
@@ -124,6 +124,32 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).not.toContain("Ожидают подтверждения")
     })
 
+    it("shows cancelled footer", () => {
+        const content = presenter.formatMatchContent({
+            match: {
+                id: 1,
+                format: "1x1",
+                seriesLength: "Bo1",
+                winnerUserId: "w1",
+                loserUserId: "l1",
+                winnerScore: 1,
+                loserScore: 0,
+                status: MatchStatus.Cancelled,
+                cancelledByUserId: "admin-1",
+            },
+            config: { verifyEmoji: "✅", rejectEmoji: "❌" },
+            winnerRating: 1000,
+            loserRating: 990,
+            confirmations: [],
+            pendingUsers: ["w1", "l1"],
+            rounds: [],
+        } as never)
+
+        expect(content).toContain("**Матч отменён** (<@admin-1>)")
+        expect(content).not.toContain("Ожидают подтверждения")
+        expect(content).not.toContain("**Матч верифицирован**")
+    })
+
     it("formats top leaderboard entries", () => {
         const content = presenter.formatTopLeaderboardContent(10, [
             {
@@ -179,6 +205,7 @@ describe("LeaderboardDiscordPresenter", () => {
                 guildId: "g1",
                 favoriteFormats: ["1x1", "2x2"],
                 verifyEmoji: "✅",
+                rejectEmoji: "❌",
                 calibrationRoleId: "role-cal",
                 freezeRoleId: null,
                 calibrationMatchThreshold: 10,
@@ -207,6 +234,7 @@ describe("LeaderboardDiscordPresenter", () => {
 
         expect(content).toContain("**Настройки рейтинга сервера**")
         expect(content).toContain("1x1, 2x2")
+        expect(content).toContain("**Эмодзи отмены:** ❌")
         expect(content).toContain("<@&role-cal>")
         expect(content).toContain("Заморозка: не задана")
         expect(content).toContain("Ангел (700–749): <@&role-angel>")

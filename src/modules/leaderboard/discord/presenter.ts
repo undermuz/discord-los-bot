@@ -79,8 +79,18 @@ export class LeaderboardDiscordPresenter {
             lines.push("")
         }
 
+        if (match.status === MatchStatus.Cancelled) {
+            const cancelledBy = match.cancelledByUserId
+                ? ` (<@${match.cancelledByUserId}>)`
+                : ""
+
+            lines.push(`❌ **Матч отменён**${cancelledBy}`)
+
+            return lines.join("\n")
+        }
+
         if (match.status === MatchStatus.Verified) {
-            lines.push("**Матч верифицирован**")
+            lines.push("✅ **Матч верифицирован**")
 
             return lines.join("\n")
         }
@@ -175,6 +185,7 @@ export class LeaderboardDiscordPresenter {
             "",
             `**Избранные форматы:** ${config.favoriteFormats.join(", ") || "не заданы"}`,
             `**Эмодзи верификации:** ${config.verifyEmoji}`,
+            `**Эмодзи отмены:** ${config.rejectEmoji}`,
             `**Стартовый рейтинг:** ${formatRating(config.initialRating)}`,
             `**Порог калибровки:** ${config.calibrationMatchThreshold} матч.`,
             `**Неактивность:** ${config.inactivityDays} дн.`,

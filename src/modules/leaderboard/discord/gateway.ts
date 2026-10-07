@@ -1,8 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import {
+    Guild,
     MessageReaction,
     PartialMessageReaction,
     PartialUser,
+    PermissionFlagsBits,
     User,
 } from "discord.js"
 import { DiscordService } from "../../../platforms/discord/discord.service.js"
@@ -59,47 +61,119 @@ export class LeaderboardDiscordGateway implements OnModuleInit {
 
             const config = await this.configService.getGuildConfig(guild.id)
 
-            if (!config || emojiName !== config.verifyEmoji) {
+            if (!config) {
                 return
             }
 
-            const match = await this.leaderboardService.findMatchByMessage(
-                guild.id,
-                fetchedReaction.message.id,
-            )
-
-            if (!match) {
+            if (emojiName === config.rejectEmoji) {
+                await this.handleMatchReject(guild, fetchedReaction, user.id)
                 return
             }
 
-            const finalized = await this.leaderboardService.confirmMatch(
-                guild.id,
-                fetchedReaction.message.id,
-                user.id,
-            )
-
-            if (!finalized) {
-                return
+            if (emojiName === config.verifyEmoji) {
+                await this.handleMatchVerify(guild, fetchedReaction, user.id)
             }
-
-            await this.presenter.refreshMatchMessage(
-                fetchedReaction.message,
-                finalized.id,
-            )
-
-            if (finalized.status !== MatchStatus.Verified) {
-                return
-            }
-
-            await this.rolesAdapter.syncMembers(
-                guild.id,
-                this.leaderboardService.getRequiredParticipants(finalized),
-                (userId) => guild.members.fetch(userId),
-            )
-
-            this.logger.log(`Match ${finalized.id} verified and applied`)
         } catch (error) {
             this.logger.error(error)
+        }
+    }
+
+    private async handleMatchVerify(
+        guild: Guild,
+        reaction: MessageReaction | PartialMessageReaction,
+        userId: string,
+    ): Promise<void> {
+        const match = await this.leaderboardService.findMatchByMessage(
+            guild.id,
+            reaction.message.id,
+        )
+
+        if (!match) {
+            return
+        }
+
+        const finalized = await this.leaderboardService.confirmMatch(
+            guild.id,
+            reaction.message.id,
+            userId,
+        )
+
+        if (!finalized) {
+            return
+        }
+
+        await this.presenter.refreshMatchMessage(reaction.message, finalized.id)
+
+        if (finalized.status !== MatchStatus.Verified) {
+            return
+        }
+
+        await this.rolesAdapter.syncMembers(
+            guild.id,
+            this.leaderboardService.getRequiredParticipants(finalized),
+            (memberId) => guild.members.fetch(memberId),
+        )
+
+        this.logger.log(`Match ${finalized.id} verified and applied`)
+    }
+
+    private async handleMatchReject(
+        guild: Guild,
+        reaction: MessageReaction | PartialMessageReaction,
+        userId: string,
+    ): Promise<void> {
+        const cancelled = await this.leaderboardService.cancelMatch(
+            guild.id,
+            reaction.message.id,
+            userId,
+            await this.memberIsAdmin(guild, userId),
+        )
+
+        if (!cancelled) {
+            return
+        }
+
+        await this.presenter.refreshMatchMessage(
+            reaction.message,
+            cancelled.match.id,
+        )
+
+        if (cancelled.ratingReverted) {
+            await this.rolesAdapter.syncMembers(
+                guild.id,
+                this.leaderboardService.getRequiredParticipants(
+                    cancelled.match,
+                ),
+                (memberId) => guild.members.fetch(memberId),
+            )
+        }
+
+        this.logger.log(
+            `Match ${cancelled.match.id} cancelled by ${userId}` +
+                (cancelled.ratingReverted ? " with rating rollback" : ""),
+        )
+    }
+
+    private async memberIsAdmin(
+        guild: Guild,
+        userId: string,
+    ): Promise<boolean> {
+        try {
+            const member = await guild.members.fetch(userId)
+
+            if (typeof member.permissions === "string") {
+                return false
+            }
+
+            return member.permissions.has(PermissionFlagsBits.Administrator)
+        } catch (error) {
+            const reason =
+                error instanceof Error ? error.message : "unknown error"
+
+            this.logger.warn(
+                `Could not resolve permissions for ${userId} in guild ${guild.id}: ${reason}`,
+            )
+            return false
         }
     }
 }

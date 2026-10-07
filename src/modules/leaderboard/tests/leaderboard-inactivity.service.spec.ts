@@ -56,6 +56,7 @@ describe("LeaderboardInactivityService", () => {
             guildId: "g1",
             favoriteFormats: [MatchFormat.OneVsOne],
             verifyEmoji: "✅",
+            rejectEmoji: "❌",
             calibrationRoleId: null,
             freezeRoleId: null,
             calibrationMatchThreshold: 10,
