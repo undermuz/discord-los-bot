@@ -473,6 +473,21 @@ const commands = [
                 ),
         ),
     new SlashCommandBuilder()
+        .setName("leaderboard-matches")
+        .setDescription("Show the last 10 rating matches")
+        .addUserOption((option) =>
+            option
+                .setName("player")
+                .setDescription("Only matches with this player")
+                .setRequired(false),
+        )
+        .addStringOption((option) =>
+            option
+                .setName("from")
+                .setDescription("Start date, YYYY-MM-DD or DD.MM.YYYY")
+                .setRequired(false),
+        ),
+    new SlashCommandBuilder()
         .setName("leaderboard-welcome")
         .setDescription("How to set up and use the rating system"),
     new SlashCommandBuilder()
@@ -496,6 +511,34 @@ const commands = [
                 )
                 .setRequired(false)
                 .setMinValue(0),
+        ),
+    new SlashCommandBuilder()
+        .setName("leaderboard-adjust-rating")
+        .setDescription("Add or subtract rating points for a player")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addUserOption((option) =>
+            option
+                .setName("player")
+                .setDescription("Player to adjust")
+                .setRequired(true),
+        )
+        .addNumberOption((option) =>
+            option
+                .setName("delta")
+                .setDescription("Points to add (negative to subtract)")
+                .setRequired(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName("format")
+                .setDescription("Format to adjust (default: every format)")
+                .setRequired(false)
+                .addChoices(
+                    MATCH_FORMATS.map((format) => ({
+                        name: format,
+                        value: format,
+                    })),
+                ),
         ),
     new SlashCommandBuilder()
         .setName("leaderboard-reset-stats")

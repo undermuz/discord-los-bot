@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { InjectRepository } from "@nestjs/typeorm"
-import { Repository } from "typeorm"
+import { In, Repository } from "typeorm"
 import {
     MatchConfirmation,
     RatingMatch,
@@ -33,6 +33,19 @@ import {
     SeriesLength,
     MATCH_FORMATS,
 } from "./types.js"
+
+const RECENT_MATCH_LIMIT = 10
+
+export interface RatingAdjustment {
+    delta: number
+    formatRatings: Array<{ format: MatchFormat; rating: number }>
+    mainRating: number
+}
+
+export interface RecentMatchDetails {
+    match: RatingMatch
+    rounds: RatingMatchRound[]
+}
 
 @Injectable()
 export class LeaderboardService {
@@ -633,6 +646,105 @@ export class LeaderboardService {
             state.isFrozen = false
             await this.playerStateRepository.save(state)
         }
+    }
+
+    async adjustPlayerRating(
+        guildId: string,
+        discordUserId: string,
+        delta: number,
+        format?: MatchFormat,
+    ): Promise<RatingAdjustment> {
+        const config = await this.configService.requireGuildConfig(guildId)
+        const roundedDelta = roundRating(delta)
+        const formats = format ? [format] : MATCH_FORMATS
+        const ratings = await Promise.all(
+            formats.map((matchFormat) =>
+                this.getOrCreatePlayerRating(
+                    guildId,
+                    discordUserId,
+                    matchFormat,
+                    config.initialRating,
+                ),
+            ),
+        )
+
+        for (const playerRating of ratings) {
+            playerRating.rating = Math.max(
+                0,
+                this.ratingService.applyDelta(
+                    playerRating.rating,
+                    roundedDelta,
+                ),
+            )
+        }
+
+        await this.playerRatingRepository.save(ratings)
+
+        return {
+            delta: roundedDelta,
+            formatRatings: ratings.map((playerRating) => ({
+                format: playerRating.format as MatchFormat,
+                rating: playerRating.rating,
+            })),
+            mainRating: await this.aggregateService.getMainRating(
+                guildId,
+                discordUserId,
+                config,
+            ),
+        }
+    }
+
+    async getRecentMatches(
+        guildId: string,
+        options: { discordUserId?: string; from?: Date } = {},
+    ): Promise<RecentMatchDetails[]> {
+        const query = this.matchRepository
+            .createQueryBuilder("match")
+            .where("match.guildId = :guildId", { guildId })
+
+        if (options.discordUserId) {
+            query.andWhere(
+                "(match.winnerUserId = :discordUserId OR match.loserUserId = :discordUserId OR match.winnerPartnerUserId = :discordUserId OR match.loserPartnerUserId = :discordUserId)",
+                { discordUserId: options.discordUserId },
+            )
+        }
+
+        if (options.from) {
+            query.andWhere("match.createdAt >= :from", { from: options.from })
+        }
+
+        const matches = await query
+            .orderBy("match.createdAt", "DESC")
+            .addOrderBy("match.id", "DESC")
+            .limit(RECENT_MATCH_LIMIT)
+            .getMany()
+
+        if (matches.length === 0) {
+            return []
+        }
+
+        const rounds = await this.roundRepository.find({
+            where: { matchId: In(matches.map((match) => match.id)) },
+            order: { roundNumber: "ASC" },
+        })
+        const roundsByMatchId = new Map<number, RatingMatchRound[]>()
+
+        for (const round of rounds) {
+            const matchRounds = roundsByMatchId.get(round.matchId) ?? []
+            matchRounds.push(round)
+            roundsByMatchId.set(round.matchId, matchRounds)
+        }
+
+        for (const matchRounds of roundsByMatchId.values()) {
+            matchRounds.sort(
+                (left, right) => left.roundNumber - right.roundNumber,
+            )
+        }
+
+        return matches.map((match) => ({
+            match,
+            rounds: roundsByMatchId.get(match.id) ?? [],
+        }))
     }
 
     getRequiredParticipants(match: RatingMatch): string[] {

@@ -194,6 +194,8 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("/um-2x2")
         expect(content).toContain("/um-1x1")
         expect(content).toContain("/leaderboard-top")
+        expect(content).toContain("/leaderboard-matches")
+        expect(content).toContain("/leaderboard-adjust-rating")
         expect(content).toContain("/leaderboard-config")
         expect(content).toContain("**4**")
         expect(content).toContain("**90**")
@@ -239,5 +241,63 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("Заморозка: не задана")
         expect(content).toContain("Ангел (700–749): <@&role-angel>")
         expect(content).toContain("Гудини (1300+): не задана")
+    })
+
+    it("formats recent matches with player and start date", () => {
+        const content = presenter
+            .formatRecentMatchBlocks(
+                [
+                    {
+                        match: {
+                            id: 4,
+                            format: "1x1",
+                            seriesLength: "Bo1",
+                            winnerUserId: "w1",
+                            loserUserId: "l1",
+                            winnerPartnerUserId: null,
+                            loserPartnerUserId: null,
+                            winnerScore: 1,
+                            loserScore: 0,
+                            status: MatchStatus.Verified,
+                            createdAt: new Date(2026, 1, 3, 15, 4),
+                            cancelledByUserId: null,
+                        },
+                        rounds: [
+                            {
+                                roundNumber: 1,
+                                mapName: "McMinnville OR",
+                                winnerUserId: "w1",
+                                playerOneHeroName: "Achilles",
+                                playerTwoHeroName: "Alice",
+                                playerOnePartnerHeroName: null,
+                                playerTwoPartnerHeroName: null,
+                                firstPlayerUserId: "l1",
+                            },
+                        ],
+                    },
+                ] as never,
+                {
+                    discordUserId: "w1",
+                    from: new Date(2026, 0, 1),
+                },
+            )
+            .join("\n\n")
+
+        expect(content).toContain("**Последние матчи**")
+        expect(content).toContain("Игрок: <@w1>")
+        expect(content).toContain("С: 01.01.2026")
+        expect(content).toContain(
+            "**#4** 1x1 Bo1 1:0 — верифицирован — 03.02.2026 15:04",
+        )
+        expect(content).toContain("McMinnville OR")
+        expect(content).toContain("Achilles vs Alice")
+        expect(content).toContain("Первый ход: <@l1>")
+    })
+
+    it("formats an empty recent match list", () => {
+        const content = presenter.formatRecentMatchBlocks([], {}).join("\n")
+
+        expect(content).toContain("**Последние матчи**")
+        expect(content).toContain("Нет матчей.")
     })
 })

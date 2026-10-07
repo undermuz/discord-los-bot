@@ -12,7 +12,7 @@ import {
 import { LeaderboardCatalogService } from "../../catalog.service.js"
 import { LeaderboardConfigService } from "../../config.service.js"
 import { LeaderboardService } from "../../leaderboard.service.js"
-import { MatchFormat, SeriesLength } from "../../types.js"
+import { MatchFormat, MatchStatus, SeriesLength } from "../../types.js"
 import { LeaderboardDiscordCommands } from "../commands.js"
 import { LeaderboardDiscordPresenter } from "../presenter.js"
 import { LeaderboardDiscordRoles } from "../roles.js"
@@ -22,6 +22,7 @@ describe("LeaderboardDiscordCommands", () => {
     let leaderboardService: LeaderboardService
     let configService: LeaderboardConfigService
     let catalogService: LeaderboardCatalogService
+    let rolesAdapter: { syncMembers: ReturnType<typeof vi.fn> }
 
     beforeEach(() => {
         handlers = new Map()
@@ -54,6 +55,12 @@ describe("LeaderboardDiscordCommands", () => {
             }),
             attachMessageId: vi.fn(),
             finalizeMatch: vi.fn(),
+            getRecentMatches: vi.fn().mockResolvedValue([]),
+            adjustPlayerRating: vi.fn().mockResolvedValue({
+                delta: 25,
+                formatRatings: [{ format: MatchFormat.OneVsOne, rating: 1025 }],
+                mainRating: 1025,
+            }),
             getTopPlayers: vi.fn().mockResolvedValue([
                 {
                     discordUserId: "w1",
@@ -88,6 +95,8 @@ describe("LeaderboardDiscordCommands", () => {
             ]),
         } as unknown as LeaderboardConfigService
 
+        rolesAdapter = { syncMembers: vi.fn() }
+
         catalogService = {
             resetCache: vi.fn(),
             getMapAutocompleteChoices: vi.fn().mockReturnValue([]),
@@ -108,7 +117,7 @@ describe("LeaderboardDiscordCommands", () => {
             leaderboardService,
             configService,
             catalogService,
-            { syncMembers: vi.fn() } as unknown as LeaderboardDiscordRoles,
+            rolesAdapter as unknown as LeaderboardDiscordRoles,
             new LeaderboardDiscordPresenter(leaderboardService),
         )
         commands.onModuleInit()
@@ -590,6 +599,134 @@ describe("LeaderboardDiscordCommands", () => {
         expect(catalogService.resetCache).not.toHaveBeenCalled()
         expect(interaction.reply).toHaveBeenCalledWith({
             content: "Administrator permission required",
+            ephemeral: true,
+        })
+    })
+
+    it("adjusts a player rating for an administrator", async () => {
+        const player = createMockUser({ id: "u1" })
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-adjust-rating",
+            { player, delta: 25, format: MatchFormat.OneVsOne },
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: (flag: bigint) =>
+                            flag === PermissionFlagsBits.Administrator,
+                    },
+                },
+            },
+        )
+
+        await handlers.get("leaderboard-adjust-rating")!(interaction as never)
+
+        expect(leaderboardService.adjustPlayerRating).toHaveBeenCalledWith(
+            "g1",
+            "u1",
+            25,
+            MatchFormat.OneVsOne,
+        )
+        expect(rolesAdapter.syncMembers).toHaveBeenCalledWith(
+            "g1",
+            ["u1"],
+            expect.any(Function),
+        )
+        expect(interaction.reply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining("1x1: 1025.00"),
+                ephemeral: true,
+            }),
+        )
+    })
+
+    it("rejects rating adjustment without administrator permission", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-adjust-rating",
+            { player: createMockUser({ id: "u1" }), delta: 10 },
+            {
+                guild: { id: "g1" },
+                member: { permissions: { has: () => false } },
+            },
+        )
+
+        await handlers.get("leaderboard-adjust-rating")!(interaction as never)
+
+        expect(leaderboardService.adjustPlayerRating).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Administrator permission required",
+            ephemeral: true,
+        })
+    })
+
+    it("shows the latest guild matches", async () => {
+        vi.mocked(leaderboardService.getRecentMatches).mockResolvedValue([
+            {
+                match: {
+                    id: 8,
+                    format: MatchFormat.OneVsOne,
+                    seriesLength: SeriesLength.Bo1,
+                    winnerUserId: "w1",
+                    loserUserId: "l1",
+                    winnerPartnerUserId: null,
+                    loserPartnerUserId: null,
+                    winnerScore: 1,
+                    loserScore: 0,
+                    status: MatchStatus.Pending,
+                    createdAt: new Date(2026, 2, 4, 9, 30),
+                    cancelledByUserId: null,
+                },
+                rounds: [],
+            },
+        ] as never)
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-matches",
+            {},
+            { guild: { id: "g1" } },
+        )
+
+        await handlers.get("leaderboard-matches")!(interaction as never)
+
+        expect(leaderboardService.getRecentMatches).toHaveBeenCalledWith("g1", {
+            discordUserId: undefined,
+            from: undefined,
+        })
+        expect(interaction.reply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.stringContaining("ожидает подтверждения"),
+            }),
+        )
+        expect(interaction.followUp).not.toHaveBeenCalled()
+    })
+
+    it("filters recent matches by player and start date", async () => {
+        const player = createMockUser({ id: "u1" })
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-matches",
+            { player, from: "07.10.2026" },
+            { guild: { id: "g1" } },
+        )
+
+        await handlers.get("leaderboard-matches")!(interaction as never)
+
+        expect(leaderboardService.getRecentMatches).toHaveBeenCalledWith("g1", {
+            discordUserId: "u1",
+            from: new Date(2026, 9, 7),
+        })
+    })
+
+    it("rejects a recent-match date that is not a calendar day", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-matches",
+            { from: "2026-02-31" },
+            { guild: { id: "g1" } },
+        )
+
+        await handlers.get("leaderboard-matches")!(interaction as never)
+
+        expect(leaderboardService.getRecentMatches).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Дата должна быть в формате ГГГГ-ММ-ДД или ДД.ММ.ГГГГ",
             ephemeral: true,
         })
     })

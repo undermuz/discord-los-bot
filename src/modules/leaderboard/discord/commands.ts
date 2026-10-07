@@ -91,6 +91,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
             this.commandGetTopPlayers(interaction),
         )
         this.discordService.registerCommand(
+            "leaderboard-matches",
+            (interaction) => this.commandRecentMatches(interaction),
+        )
+        this.discordService.registerCommand(
             "leaderboard-welcome",
             (interaction) => this.commandShowWelcome(interaction),
         )
@@ -101,6 +105,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         this.discordService.registerCommand(
             "leaderboard-reset-rating",
             (interaction) => this.commandResetPlayerRating(interaction),
+        )
+        this.discordService.registerCommand(
+            "leaderboard-adjust-rating",
+            (interaction) => this.commandAdjustPlayerRating(interaction),
         )
         this.discordService.registerCommand(
             "leaderboard-reset-stats",
@@ -579,6 +587,135 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         })
     }
 
+    private async commandRecentMatches(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const target = interaction.options.getUser("player")
+        const fromRaw = interaction.options.getString("from")
+        const from = fromRaw ? this.parseFromDate(fromRaw) : undefined
+
+        if (fromRaw && !from) {
+            await interaction.reply({
+                content: "Дата должна быть в формате ГГГГ-ММ-ДД или ДД.ММ.ГГГГ",
+                ephemeral: true,
+            })
+            return
+        }
+
+        try {
+            const entries = await this.leaderboardService.getRecentMatches(
+                guildId,
+                {
+                    discordUserId: target?.id,
+                    from,
+                },
+            )
+            const messages = this.packDiscordMessages(
+                this.presenter.formatRecentMatchBlocks(entries, {
+                    discordUserId: target?.id,
+                    from,
+                }),
+            )
+            const [first, ...rest] = messages
+
+            await interaction.reply({ content: first })
+
+            for (const content of rest) {
+                await interaction.followUp({ content })
+            }
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "leaderboard-matches",
+            })
+        }
+    }
+
+    private async commandAdjustPlayerRating(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        if (!this.isAdmin(interaction)) {
+            await interaction.reply({
+                content: "Administrator permission required",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const target = interaction.options.getUser("player", true)
+        const delta = interaction.options.getNumber("delta", true)
+        const formatRaw = interaction.options.getString("format")
+        const format = (MATCH_FORMATS as readonly string[]).includes(
+            formatRaw ?? "",
+        )
+            ? (formatRaw as MatchFormat)
+            : undefined
+
+        if (formatRaw && !format) {
+            await interaction.reply({
+                content: "Unknown format",
+                ephemeral: true,
+            })
+            return
+        }
+
+        try {
+            const adjustment = await this.leaderboardService.adjustPlayerRating(
+                guildId,
+                target.id,
+                delta,
+                format,
+            )
+
+            await this.rolesAdapter.syncMembers(
+                guildId,
+                [target.id],
+                (userId) => interaction.guild!.members.fetch(userId),
+            )
+
+            const sign = adjustment.delta > 0 ? "+" : ""
+            const formatLines = adjustment.formatRatings
+                .map((item) => `${item.format}: ${formatRating(item.rating)}`)
+                .join(", ")
+
+            await interaction.reply({
+                content: [
+                    `Rating adjusted for ${target.toString()} by ${sign}${formatRating(adjustment.delta)}.`,
+                    formatLines,
+                    `Main rating is now ${formatRating(adjustment.mainRating)}.`,
+                ].join(" "),
+                ephemeral: true,
+            })
+        } catch (error) {
+            await replyWithUserError(interaction, {
+                error,
+                logger: this.logger,
+                context: "leaderboard-adjust-rating",
+            })
+        }
+    }
+
     private async commandResetPlayerRating(
         interaction: ChatInputCommandInteraction,
     ): Promise<void> {
@@ -1011,6 +1148,58 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
                 `Unknown first player "${token.trim()}". Use p1 or p2`,
             )
         })
+    }
+
+    private parseFromDate(raw: string): Date | null {
+        const trimmed = raw.trim()
+        const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed)
+        const dotted = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(trimmed)
+        const year = iso ? Number(iso[1]) : dotted ? Number(dotted[3]) : null
+        const month = iso ? Number(iso[2]) : dotted ? Number(dotted[2]) : null
+        const day = iso ? Number(iso[3]) : dotted ? Number(dotted[1]) : null
+
+        if (year === null || month === null || day === null) {
+            return null
+        }
+
+        const date = new Date(year, month - 1, day)
+
+        if (
+            date.getFullYear() !== year ||
+            date.getMonth() !== month - 1 ||
+            date.getDate() !== day
+        ) {
+            return null
+        }
+
+        return date
+    }
+
+    private packDiscordMessages(blocks: string[]): string[] {
+        const limit = 2000
+        const messages: string[] = []
+        let current = ""
+
+        for (const block of blocks) {
+            const next = current.length === 0 ? block : `${current}\n\n${block}`
+
+            if (next.length <= limit) {
+                current = next
+                continue
+            }
+
+            if (current.length > 0) {
+                messages.push(current)
+            }
+
+            current = block
+        }
+
+        if (current.length > 0) {
+            messages.push(current)
+        }
+
+        return messages
     }
 
     private isAdmin(interaction: ChatInputCommandInteraction): boolean {

@@ -18,7 +18,12 @@ import { LeaderboardRatingService } from "../rating.service.js"
 import { LeaderboardRoleService } from "../role.service.js"
 import { LeaderboardSeriesService } from "../series.service.js"
 import { LeaderboardService } from "../leaderboard.service.js"
-import { MatchFormat, MatchStatus, SeriesLength } from "../types.js"
+import {
+    MATCH_FORMATS,
+    MatchFormat,
+    MatchStatus,
+    SeriesLength,
+} from "../types.js"
 
 describe("LeaderboardService", () => {
     let service: LeaderboardService
@@ -112,7 +117,7 @@ describe("LeaderboardService", () => {
                         ),
                         find: vi.fn((entity: unknown, options?: object) => {
                             if (entity === RatingMatchPlayerChange) {
-                                return playerChangeRepository.find(options as never)
+                                return playerChangeRepository.find(options)
                             }
 
                             return []
@@ -799,6 +804,155 @@ describe("LeaderboardService", () => {
             expect.stringContaining("no stored rating changes"),
         )
         warn.mockRestore()
+    })
+
+    it("adds a rating delta to one format and keeps match statistics", async () => {
+        const rating = {
+            guildId: "g1",
+            discordUserId: "u1",
+            format: MatchFormat.TwoVsTwo,
+            rating: 1100,
+            verifiedMatchCount: 4,
+            calibrationCompleted: true,
+            lastPlayedAt: new Date("2026-01-01T00:00:00.000Z"),
+        }
+
+        playerRatingRepository.findOne.mockResolvedValue(rating)
+        playerRatingRepository.save.mockImplementation((entity) => entity)
+        playerRatingRepository.find.mockResolvedValue([])
+
+        const result = await service.adjustPlayerRating(
+            "g1",
+            "u1",
+            -50,
+            MatchFormat.TwoVsTwo,
+        )
+
+        expect(result.delta).toBe(-50)
+        expect(result.formatRatings).toEqual([
+            { format: MatchFormat.TwoVsTwo, rating: 1050 },
+        ])
+        expect(result.mainRating).toBe(1000)
+        expect(rating.verifiedMatchCount).toBe(4)
+        expect(rating.calibrationCompleted).toBe(true)
+    })
+
+    it("applies a rating delta to every format and does not go below zero", async () => {
+        const lowRating = {
+            guildId: "g1",
+            discordUserId: "u1",
+            format: MatchFormat.OneVsOne,
+            rating: 10,
+            verifiedMatchCount: 2,
+        }
+
+        playerRatingRepository.findOne.mockImplementation((options) => {
+            const format = (options as { where?: { format?: string } }).where
+                ?.format
+
+            if (format === MatchFormat.OneVsOne) {
+                return lowRating
+            }
+
+            return null
+        })
+        playerRatingRepository.save.mockImplementation((entity) => entity)
+        playerRatingRepository.find.mockImplementation(() => [lowRating])
+
+        const result = await service.adjustPlayerRating("g1", "u1", -25)
+
+        expect(result.delta).toBe(-25)
+        expect(result.formatRatings).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    format: MatchFormat.OneVsOne,
+                    rating: 0,
+                }),
+                expect.objectContaining({
+                    format: MatchFormat.TwoVsTwo,
+                    rating: 975,
+                }),
+                expect.objectContaining({
+                    format: MatchFormat.LosEnduranceAutumn2026,
+                    rating: 975,
+                }),
+            ]),
+        )
+        expect(result.formatRatings).toHaveLength(MATCH_FORMATS.length)
+        expect(result.mainRating).toBe(0)
+    })
+
+    it("returns the latest guild matches with rounds", async () => {
+        const queryBuilder = {
+            where: vi.fn().mockReturnThis(),
+            andWhere: vi.fn().mockReturnThis(),
+            orderBy: vi.fn().mockReturnThis(),
+            addOrderBy: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnThis(),
+            getMany: vi.fn().mockResolvedValue([
+                { id: 2, guildId: "g1" },
+                { id: 1, guildId: "g1" },
+            ]),
+        }
+
+        Object.assign(matchRepository, {
+            createQueryBuilder: vi.fn().mockReturnValue(queryBuilder),
+        })
+        roundRepository.find.mockResolvedValue([
+            { matchId: 1, roundNumber: 2, mapName: "Second" },
+            { matchId: 2, roundNumber: 1, mapName: "Only" },
+            { matchId: 1, roundNumber: 1, mapName: "First" },
+        ])
+
+        const from = new Date(2026, 0, 1)
+        const result = await service.getRecentMatches("g1", {
+            discordUserId: "u1",
+            from,
+        })
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+            expect.stringContaining("winnerUserId"),
+            { discordUserId: "u1" },
+        )
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+            "match.createdAt >= :from",
+            { from },
+        )
+        expect(queryBuilder.limit).toHaveBeenCalledWith(10)
+        expect(result).toEqual([
+            {
+                match: { id: 2, guildId: "g1" },
+                rounds: [{ matchId: 2, roundNumber: 1, mapName: "Only" }],
+            },
+            {
+                match: { id: 1, guildId: "g1" },
+                rounds: [
+                    { matchId: 1, roundNumber: 1, mapName: "First" },
+                    { matchId: 1, roundNumber: 2, mapName: "Second" },
+                ],
+            },
+        ])
+    })
+
+    it("returns no matches without loading rounds", async () => {
+        const queryBuilder = {
+            where: vi.fn().mockReturnThis(),
+            andWhere: vi.fn().mockReturnThis(),
+            orderBy: vi.fn().mockReturnThis(),
+            addOrderBy: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnThis(),
+            getMany: vi.fn().mockResolvedValue([]),
+        }
+
+        Object.assign(matchRepository, {
+            createQueryBuilder: vi.fn().mockReturnValue(queryBuilder),
+        })
+
+        const result = await service.getRecentMatches("g1")
+
+        expect(result).toEqual([])
+        expect(queryBuilder.andWhere).not.toHaveBeenCalled()
+        expect(roundRepository.find).not.toHaveBeenCalled()
     })
 
     it("returns null when the match is already cancelled", async () => {

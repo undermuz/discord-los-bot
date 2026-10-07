@@ -2,8 +2,15 @@ import { Injectable } from "@nestjs/common"
 import { Message, PartialMessage } from "discord.js"
 import { LeaderboardGuildConfig } from "../../../database/entities/leaderboard-guild-config.entity.js"
 import { RatingTierRole } from "../../../database/entities/rating-tier-role.entity.js"
+import {
+    RatingMatch,
+    RatingMatchRound,
+} from "../../../database/entities/rating-match.entity.js"
 import { formatRating } from "../rating.util.js"
-import { LeaderboardService } from "../leaderboard.service.js"
+import {
+    LeaderboardService,
+    RecentMatchDetails,
+} from "../leaderboard.service.js"
 import { MatchStatus } from "../types.js"
 import type { LeaderboardTopEntry } from "../types.js"
 
@@ -50,29 +57,7 @@ export class LeaderboardDiscordPresenter {
         ]
 
         for (const round of rounds) {
-            const sideOneHeroes = this.formatHeroes(
-                round.playerOneHeroName,
-                round.playerOnePartnerHeroName,
-            )
-            const sideTwoHeroes = this.formatHeroes(
-                round.playerTwoHeroName,
-                round.playerTwoPartnerHeroName,
-            )
-            const hasHeroes =
-                sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
-
-            const roundNumber =
-                rounds.length === 1 ? "" : `${round.roundNumber}. `
-
-            lines.push(
-                `${roundNumber}${round.mapName} — 🏆<@${round.winnerUserId}>`,
-            )
-
-            if (hasHeroes) {
-                lines.push(`   Герои: ${sideOneHeroes} vs ${sideTwoHeroes}`)
-            }
-
-            lines.push(`   Первый ход: <@${round.firstPlayerUserId}>`)
+            lines.push(...this.formatRoundLines(round, rounds.length))
         }
 
         if (rounds.length > 0) {
@@ -164,6 +149,98 @@ export class LeaderboardDiscordPresenter {
         return [`**Топ-${size} рейтинга**`, "", ...lines].join("\n")
     }
 
+    formatRecentMatchBlocks(
+        entries: RecentMatchDetails[],
+        filter: { discordUserId?: string; from?: Date },
+    ): string[] {
+        const header = ["**Последние матчи**"]
+
+        if (filter.discordUserId) {
+            header.push(`Игрок: <@${filter.discordUserId}>`)
+        }
+
+        if (filter.from) {
+            header.push(`С: ${this.formatDate(filter.from)}`)
+        }
+
+        if (entries.length === 0) {
+            header.push("Нет матчей.")
+            return [header.join("\n")]
+        }
+
+        return [
+            header.join("\n"),
+            ...entries.map((entry) => this.formatRecentMatchBlock(entry)),
+        ]
+    }
+
+    private formatRecentMatchBlock(entry: RecentMatchDetails): string {
+        const { match, rounds } = entry
+        const lines = [
+            `**#${match.id}** ${match.format} ${match.seriesLength} ${match.winnerScore}:${match.loserScore} — ${this.formatMatchStatus(match)} — ${this.formatTimestamp(match.createdAt)}`,
+            `${this.formatSide(match.winnerUserId, match.winnerPartnerUserId)} vs ${this.formatSide(match.loserUserId, match.loserPartnerUserId)}`,
+        ]
+
+        for (const round of rounds) {
+            lines.push(...this.formatRoundLines(round, rounds.length))
+        }
+
+        return lines.join("\n")
+    }
+
+    private formatRoundLines(
+        round: RatingMatchRound,
+        roundCount: number,
+    ): string[] {
+        const sideOneHeroes = this.formatHeroes(
+            round.playerOneHeroName,
+            round.playerOnePartnerHeroName,
+        )
+        const sideTwoHeroes = this.formatHeroes(
+            round.playerTwoHeroName,
+            round.playerTwoPartnerHeroName,
+        )
+        const hasHeroes = sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
+        const roundNumber = roundCount === 1 ? "" : `${round.roundNumber}. `
+        const lines = [
+            `${roundNumber}${round.mapName} — 🏆<@${round.winnerUserId}>`,
+        ]
+
+        if (hasHeroes) {
+            lines.push(`   Герои: ${sideOneHeroes} vs ${sideTwoHeroes}`)
+        }
+
+        lines.push(`   Первый ход: <@${round.firstPlayerUserId}>`)
+
+        return lines
+    }
+
+    private formatMatchStatus(match: RatingMatch): string {
+        if (match.status === MatchStatus.Verified) {
+            return "верифицирован"
+        }
+
+        if (match.status === MatchStatus.Cancelled) {
+            return match.cancelledByUserId
+                ? `отменён (<@${match.cancelledByUserId}>)`
+                : "отменён"
+        }
+
+        return "ожидает подтверждения"
+    }
+
+    private formatDate(value: Date): string {
+        const pad = (part: number) => String(part).padStart(2, "0")
+
+        return `${pad(value.getDate())}.${pad(value.getMonth() + 1)}.${value.getFullYear()}`
+    }
+
+    private formatTimestamp(value: Date): string {
+        const pad = (part: number) => String(part).padStart(2, "0")
+
+        return `${this.formatDate(value)} ${pad(value.getHours())}:${pad(value.getMinutes())}`
+    }
+
     formatGuildConfigContent(
         config: LeaderboardGuildConfig,
         tiers: RatingTierRole[],
@@ -209,6 +286,7 @@ export class LeaderboardDiscordPresenter {
             "2. `/leaderboard-setup-formats` - выберите форматы для расчёта основного рейтинга.",
             "3. `/leaderboard-setup-special-roles` - задайте роли для **Калибровка** и **Заморозка**.",
             "4. `/leaderboard-setup-roles` - привяжите Discord-роли к тирам. Команду нужно выполнить для каждого тира.",
+            "5. `/leaderboard-adjust-rating` - прибавить или убавить рейтинг игрока. Без формата правка применяется ко всем форматам.",
             "",
             "**Для участников**",
             "",
@@ -219,6 +297,7 @@ export class LeaderboardDiscordPresenter {
             "• `/um-2x2` — матч 2x2 Bo1: четыре игрока, карта, победитель и герой каждого. Первым ходит `team1_p1`. Подтверждают все четверо.",
             "• `/um-1x1` — короткий Bo1 для LosEnduranceAutumn2026: `p1`, `p2`, `winner`, `map`. Имена героев не нужны. Первым ходит `p1`.",
             "• `/leaderboard [player]` - посмотреть рейтинг себя или другого игрока.",
+            "• `/leaderboard-matches [player] [from]` - последние 10 матчей. Без игрока показывает матчи сервера. `from` — дата начала, ГГГГ-ММ-ДД или ДД.ММ.ГГГГ.",
             "• `/leaderboard-top [size]` - топ игроков (10, 50 или 100) по основному рейтингу.",
             "• `/leaderboard-config` - текущие настройки рейтинга сервера.",
             "",
