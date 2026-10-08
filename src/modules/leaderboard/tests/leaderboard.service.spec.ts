@@ -443,6 +443,52 @@ describe("LeaderboardService", () => {
         playerStateRepository.save.mockImplementation((entity) =>
             Promise.resolve({ id: 1, ...entity }),
         )
+        matchRepository.find.mockImplementation(({ where }) => {
+            const matches = [
+                {
+                    guildId: "g1",
+                    format: MatchFormat.OneVsOne,
+                    status: MatchStatus.Verified,
+                    winnerUserId: "u1",
+                    loserUserId: "x",
+                    winnerPartnerUserId: null,
+                    loserPartnerUserId: null,
+                },
+                {
+                    guildId: "g1",
+                    format: MatchFormat.OneVsOne,
+                    status: MatchStatus.Verified,
+                    winnerUserId: "u1",
+                    loserUserId: "x",
+                    winnerPartnerUserId: null,
+                    loserPartnerUserId: null,
+                },
+                {
+                    guildId: "g1",
+                    format: MatchFormat.OneVsOne,
+                    status: MatchStatus.Cancelled,
+                    winnerUserId: "u1",
+                    loserUserId: "x",
+                    winnerPartnerUserId: null,
+                    loserPartnerUserId: null,
+                },
+                {
+                    guildId: "g1",
+                    format: MatchFormat.OneVsOne,
+                    status: MatchStatus.Verified,
+                    winnerUserId: "u2",
+                    loserUserId: "x",
+                    winnerPartnerUserId: null,
+                    loserPartnerUserId: null,
+                },
+            ]
+
+            return matches.filter(
+                (match) =>
+                    match.guildId === where.guildId &&
+                    match.status === where.status,
+            )
+        })
 
         const top = await service.getTopPlayers("g1", 10)
 
@@ -450,10 +496,12 @@ describe("LeaderboardService", () => {
             expect.objectContaining({
                 discordUserId: "u2",
                 mainRating: 1200,
+                totalVerifiedMatches: 1,
             }),
             expect.objectContaining({
                 discordUserId: "u1",
                 mainRating: 1100,
+                totalVerifiedMatches: 2,
             }),
         ])
     })
@@ -787,8 +835,40 @@ describe("LeaderboardService", () => {
             .spyOn(Logger.prototype, "warn")
             .mockImplementation(() => undefined)
         const match = pendingMatch(MatchStatus.Verified)
+        const winnerRating = {
+            guildId: "g1",
+            discordUserId: "winner",
+            format: MatchFormat.OneVsOne,
+            rating: 1100,
+            verifiedMatchCount: 4,
+            calibrationCompleted: true,
+        }
+        const loserRating = {
+            guildId: "g1",
+            discordUserId: "loser",
+            format: MatchFormat.OneVsOne,
+            rating: 900,
+            verifiedMatchCount: 1,
+            calibrationCompleted: false,
+        }
+
         matchRepository.findOne.mockResolvedValue(match)
         playerChangeRepository.find.mockResolvedValue([])
+        playerRatingRepository.findOne.mockImplementation((options) => {
+            const discordUserId = (
+                options as { where?: { discordUserId?: string } }
+            ).where?.discordUserId
+
+            if (discordUserId === "winner") {
+                return winnerRating
+            }
+
+            if (discordUserId === "loser") {
+                return loserRating
+            }
+
+            return null
+        })
 
         const result = await service.cancelMatch("g1", "m1", "admin-1", true)
 
@@ -799,7 +879,12 @@ describe("LeaderboardService", () => {
             }),
             ratingReverted: false,
         })
-        expect(playerRatingRepository.findOne).not.toHaveBeenCalled()
+        expect(winnerRating).toEqual(
+            expect.objectContaining({ rating: 1100, verifiedMatchCount: 3 }),
+        )
+        expect(loserRating).toEqual(
+            expect.objectContaining({ rating: 900, verifiedMatchCount: 0 }),
+        )
         expect(warn).toHaveBeenCalledWith(
             expect.stringContaining("no stored rating changes"),
         )
@@ -911,6 +996,10 @@ describe("LeaderboardService", () => {
         })
 
         expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+            "match.status != :cancelled",
+            { cancelled: MatchStatus.Cancelled },
+        )
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
             expect.stringContaining("winnerUserId"),
             { discordUserId: "u1" },
         )
@@ -951,7 +1040,11 @@ describe("LeaderboardService", () => {
         const result = await service.getRecentMatches("g1")
 
         expect(result).toEqual([])
-        expect(queryBuilder.andWhere).not.toHaveBeenCalled()
+        expect(queryBuilder.andWhere).toHaveBeenCalledTimes(1)
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+            "match.status != :cancelled",
+            { cancelled: MatchStatus.Cancelled },
+        )
         expect(roundRepository.find).not.toHaveBeenCalled()
     })
 

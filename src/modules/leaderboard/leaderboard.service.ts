@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { InjectRepository } from "@nestjs/typeorm"
-import { In, Repository } from "typeorm"
+import { EntityManager, In, Repository } from "typeorm"
 import {
     MatchConfirmation,
     RatingMatch,
@@ -257,6 +257,13 @@ export class LeaderboardService {
             })
         }
 
+        const priorVerifiedMatches = await this.findVerifiedMatches(
+            match.guildId,
+            match.format,
+        )
+        const priorVerifiedCount = (discordUserId: string) =>
+            this.countParticipations(priorVerifiedMatches, discordUserId)
+
         if (winnerRatings.length === 1 && loserRatings.length === 1) {
             const winnerRating = winnerRatings[0]
             const loserRating = loserRatings[0]
@@ -274,7 +281,7 @@ export class LeaderboardService {
                     winner: {
                         k1: computeK1(winnerWinStreak),
                         k2: computeK2(
-                            winnerRating.verifiedMatchCount <
+                            priorVerifiedCount(winnerRating.discordUserId) <
                                 config.calibrationMatchThreshold,
                             winnerRating.calibrationCompleted,
                         ),
@@ -282,7 +289,7 @@ export class LeaderboardService {
                     loser: {
                         k1: 1,
                         k2: computeK2(
-                            loserRating.verifiedMatchCount <
+                            priorVerifiedCount(loserRating.discordUserId) <
                                 config.calibrationMatchThreshold,
                             loserRating.calibrationCompleted,
                         ),
@@ -324,7 +331,7 @@ export class LeaderboardService {
                     match.seriesLength === SeriesLength.Bo5
                         ? 1
                         : computeK2(
-                              playerRating.verifiedMatchCount <
+                              priorVerifiedCount(playerRating.discordUserId) <
                                   config.calibrationMatchThreshold,
                               playerRating.calibrationCompleted,
                           )
@@ -340,7 +347,7 @@ export class LeaderboardService {
                     match.seriesLength === SeriesLength.Bo5
                         ? 1
                         : computeK2(
-                              playerRating.verifiedMatchCount <
+                              priorVerifiedCount(playerRating.discordUserId) <
                                   config.calibrationMatchThreshold,
                               playerRating.calibrationCompleted,
                           )
@@ -356,7 +363,8 @@ export class LeaderboardService {
         const updatedRatings = [...winnerRatings, ...loserRatings]
 
         for (const playerRating of updatedRatings) {
-            playerRating.verifiedMatchCount += 1
+            playerRating.verifiedMatchCount =
+                priorVerifiedCount(playerRating.discordUserId) + 1
             playerRating.lastPlayedAt = now
             this.markCalibrationCompletedIfNeeded(
                 playerRating,
@@ -461,11 +469,10 @@ export class LeaderboardService {
 
         return {
             isFrozen: playerState.isFrozen,
-            totalVerifiedMatches:
-                await this.aggregateService.getTotalVerifiedMatches(
-                    guildId,
-                    discordUserId,
-                ),
+            totalVerifiedMatches: await this.countVerifiedMatches(
+                guildId,
+                discordUserId,
+            ),
             mainRating: await this.aggregateService.getMainRating(
                 guildId,
                 discordUserId,
@@ -701,6 +708,9 @@ export class LeaderboardService {
         const query = this.matchRepository
             .createQueryBuilder("match")
             .where("match.guildId = :guildId", { guildId })
+            .andWhere("match.status != :cancelled", {
+                cancelled: MatchStatus.Cancelled,
+            })
 
         if (options.discordUserId) {
             query.andWhere(
@@ -765,7 +775,11 @@ export class LeaderboardService {
                 const playerRating = await this.playerRatingRepository.findOne({
                     where: { guildId, discordUserId, format },
                 })
-                const verifiedMatchCount = playerRating?.verifiedMatchCount ?? 0
+                const verifiedMatchCount = await this.countVerifiedMatches(
+                    guildId,
+                    discordUserId,
+                    format,
+                )
                 const consecutiveWins = await this.getConsecutiveWins(
                     guildId,
                     discordUserId,
@@ -797,6 +811,20 @@ export class LeaderboardService {
         size: number,
     ): Promise<LeaderboardTopEntry[]> {
         const config = await this.configService.requireGuildConfig(guildId)
+        const verifiedMatches = await this.findVerifiedMatches(guildId)
+        const verifiedCountByUser = new Map<string, number>()
+
+        for (const verifiedMatch of verifiedMatches) {
+            for (const discordUserId of this.getRequiredParticipants(
+                verifiedMatch,
+            )) {
+                verifiedCountByUser.set(
+                    discordUserId,
+                    (verifiedCountByUser.get(discordUserId) ?? 0) + 1,
+                )
+            }
+        }
+
         const ratings = await this.playerRatingRepository.find({
             where: { guildId },
         })
@@ -811,11 +839,9 @@ export class LeaderboardService {
 
         const entries: LeaderboardTopEntry[] = []
 
-        for (const [discordUserId, userRatings] of ratingsByUser) {
-            const totalVerifiedMatches = userRatings.reduce(
-                (total, rating) => total + rating.verifiedMatchCount,
-                0,
-            )
+        for (const discordUserId of ratingsByUser.keys()) {
+            const totalVerifiedMatches =
+                verifiedCountByUser.get(discordUserId) ?? 0
 
             if (totalVerifiedMatches === 0) {
                 continue
@@ -866,6 +892,7 @@ export class LeaderboardService {
                     this.logger.warn(
                         `Match ${match.id} has no stored rating changes; cancelling without rating rollback`,
                     )
+                    await this.decrementVerifiedMatchCounts(manager, match)
                     this.markCancelled(match, userId)
 
                     return {
@@ -924,6 +951,64 @@ export class LeaderboardService {
                 }
             },
         )
+    }
+
+    private async findVerifiedMatches(
+        guildId: string,
+        format?: MatchFormat,
+    ): Promise<RatingMatch[]> {
+        return this.matchRepository.find({
+            where: {
+                guildId,
+                status: MatchStatus.Verified,
+                ...(format ? { format } : {}),
+            },
+        })
+    }
+
+    private async countVerifiedMatches(
+        guildId: string,
+        discordUserId: string,
+        format?: MatchFormat,
+    ): Promise<number> {
+        const matches = await this.findVerifiedMatches(guildId, format)
+
+        return this.countParticipations(matches, discordUserId)
+    }
+
+    private countParticipations(
+        matches: RatingMatch[],
+        discordUserId: string,
+    ): number {
+        return matches.filter((match) =>
+            this.getRequiredParticipants(match).includes(discordUserId),
+        ).length
+    }
+
+    private async decrementVerifiedMatchCounts(
+        manager: EntityManager,
+        match: RatingMatch,
+    ): Promise<void> {
+        for (const discordUserId of this.getRequiredParticipants(match)) {
+            const playerRating = await manager.findOne(PlayerRating, {
+                where: {
+                    guildId: match.guildId,
+                    discordUserId,
+                    format: match.format,
+                },
+            })
+
+            if (!playerRating) {
+                continue
+            }
+
+            playerRating.verifiedMatchCount = Math.max(
+                0,
+                playerRating.verifiedMatchCount - 1,
+            )
+
+            await manager.save(playerRating)
+        }
     }
 
     private markCancelled(match: RatingMatch, userId: string): void {

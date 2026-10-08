@@ -202,6 +202,7 @@ export class LeaderboardDiscordPresenter {
         )
         const hasHeroes = sideOneHeroes.length > 0 || sideTwoHeroes.length > 0
         const roundNumber = roundCount === 1 ? "" : `${round.roundNumber}. `
+
         const lines = [
             `${roundNumber}${round.mapName} — 🏆<@${round.winnerUserId}>`,
         ]
@@ -297,7 +298,7 @@ export class LeaderboardDiscordPresenter {
             "• `/um-2x2` — матч 2x2 Bo1: четыре игрока, карта, победитель и герой каждого. Первым ходит `team1_p1`. Подтверждают все четверо.",
             "• `/um-1x1` — короткий Bo1 для LosEnduranceAutumn2026: `p1`, `p2`, `winner`, `map`. Имена героев не нужны. Первым ходит `p1`.",
             "• `/leaderboard [player]` - посмотреть рейтинг себя или другого игрока.",
-            "• `/leaderboard-matches [player] [from]` - последние 10 матчей. Без игрока показывает матчи сервера. `from` — дата начала, ГГГГ-ММ-ДД или ДД.ММ.ГГГГ.",
+            "• `/leaderboard-matches [player] [from]` - последние 10 матчей, кроме отменённых. Без игрока показывает матчи сервера. `from` — дата начала, ГГГГ-ММ-ДД или ДД.ММ.ГГГГ.",
             "• `/leaderboard-top [size]` - топ игроков (10, 50 или 100) по основному рейтингу.",
             "• `/leaderboard-config` - текущие настройки рейтинга сервера.",
             "",
