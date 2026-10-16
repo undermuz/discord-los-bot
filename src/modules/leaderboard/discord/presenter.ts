@@ -52,7 +52,8 @@ export class LeaderboardDiscordPresenter {
         )
 
         const lines = [
-            `**Рейтинговый матч №${match.id} (${match.format}, ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
+            `**Рейтинговый матч №${match.id}**`,
+            `**(${match.format}, ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
             `${this.formatSide(match.winnerUserId, match.winnerPartnerUserId)} vs ${this.formatSide(match.loserUserId, match.loserPartnerUserId)}`,
             `Рейтинг: ${this.formatRatingWithDelta(winnerRating, winnerDelta)} / ${this.formatRatingWithDelta(loserRating, loserDelta)}`,
             "",
