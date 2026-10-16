@@ -262,8 +262,18 @@ export class LeaderboardService {
             match.guildId,
             match.format,
         )
+        const resetAtByUser = await this.loadStatsResetAt(
+            match.guildId,
+            [...winnerRatings, ...loserRatings].map(
+                (playerRating) => playerRating.discordUserId,
+            ),
+        )
         const priorVerifiedCount = (discordUserId: string) =>
-            this.countParticipations(priorVerifiedMatches, discordUserId)
+            this.countParticipations(
+                priorVerifiedMatches,
+                discordUserId,
+                resetAtByUser.get(discordUserId) ?? null,
+            )
 
         if (winnerRatings.length === 1 && loserRatings.length === 1) {
             const winnerRating = winnerRatings[0]
@@ -650,10 +660,9 @@ export class LeaderboardService {
 
         const state = await this.getOrCreatePlayerState(guildId, discordUserId)
 
-        if (state.isFrozen) {
-            state.isFrozen = false
-            await this.playerStateRepository.save(state)
-        }
+        state.statsResetAt = new Date()
+        state.isFrozen = false
+        await this.playerStateRepository.save(state)
     }
 
     async adjustPlayerRating(
@@ -825,12 +834,22 @@ export class LeaderboardService {
     ): Promise<LeaderboardTopEntry[]> {
         const config = await this.configService.requireGuildConfig(guildId)
         const verifiedMatches = await this.findVerifiedMatches(guildId)
+        const resetAtByUser = await this.loadStatsResetAt(guildId)
         const verifiedCountByUser = new Map<string, number>()
 
         for (const verifiedMatch of verifiedMatches) {
             for (const discordUserId of this.getRequiredParticipants(
                 verifiedMatch,
             )) {
+                if (
+                    !this.countsAfterReset(
+                        verifiedMatch,
+                        resetAtByUser.get(discordUserId) ?? null,
+                    )
+                ) {
+                    continue
+                }
+
                 verifiedCountByUser.set(
                     discordUserId,
                     (verifiedCountByUser.get(discordUserId) ?? 0) + 1,
@@ -985,17 +1004,71 @@ export class LeaderboardService {
         format?: MatchFormat,
     ): Promise<number> {
         const matches = await this.findVerifiedMatches(guildId, format)
+        const state = await this.playerStateRepository.findOne({
+            where: { guildId, discordUserId },
+        })
 
-        return this.countParticipations(matches, discordUserId)
+        return this.countParticipations(
+            matches,
+            discordUserId,
+            state?.statsResetAt ?? null,
+        )
     }
 
     private countParticipations(
         matches: RatingMatch[],
         discordUserId: string,
+        statsResetAt: Date | string | null,
     ): number {
-        return matches.filter((match) =>
-            this.getRequiredParticipants(match).includes(discordUserId),
+        return matches.filter(
+            (match) =>
+                this.getRequiredParticipants(match).includes(discordUserId) &&
+                this.countsAfterReset(match, statsResetAt),
         ).length
+    }
+
+    private async loadStatsResetAt(
+        guildId: string,
+        discordUserIds?: string[],
+    ): Promise<Map<string, Date | null>> {
+        const uniqueUserIds = discordUserIds
+            ? [...new Set(discordUserIds)]
+            : undefined
+        const states = await this.playerStateRepository.find(
+            uniqueUserIds
+                ? {
+                      where: uniqueUserIds.map((discordUserId) => ({
+                          guildId,
+                          discordUserId,
+                      })),
+                  }
+                : { where: { guildId } },
+        )
+
+        return new Map(
+            states.map((state) => [
+                state.discordUserId,
+                state.statsResetAt ?? null,
+            ]),
+        )
+    }
+
+    private countsAfterReset(
+        match: RatingMatch,
+        statsResetAt: Date | string | null,
+    ): boolean {
+        if (!statsResetAt) {
+            return true
+        }
+
+        if (!match.verifiedAt) {
+            return false
+        }
+
+        const verifiedAt = new Date(match.verifiedAt).getTime()
+        const resetAt = new Date(statsResetAt).getTime()
+
+        return Number.isFinite(verifiedAt) && verifiedAt > resetAt
     }
 
     private async decrementVerifiedMatchCounts(
@@ -1003,6 +1076,17 @@ export class LeaderboardService {
         match: RatingMatch,
     ): Promise<void> {
         for (const discordUserId of this.getRequiredParticipants(match)) {
+            const state = await manager.findOne(PlayerState, {
+                where: {
+                    guildId: match.guildId,
+                    discordUserId,
+                },
+            })
+
+            if (!this.countsAfterReset(match, state?.statsResetAt ?? null)) {
+                continue
+            }
+
             const playerRating = await manager.findOne(PlayerRating, {
                 where: {
                     guildId: match.guildId,
@@ -1117,10 +1201,22 @@ export class LeaderboardService {
             },
             order: { verifiedAt: "DESC" },
         })
+        const state = await this.playerStateRepository.findOne({
+            where: { guildId, discordUserId },
+        })
 
         let streak = 0
 
         for (const verifiedMatch of matches) {
+            if (
+                !this.countsAfterReset(
+                    verifiedMatch,
+                    state?.statsResetAt ?? null,
+                )
+            ) {
+                continue
+            }
+
             const winners = this.sideUserIds(
                 verifiedMatch.winnerUserId,
                 verifiedMatch.winnerPartnerUserId,

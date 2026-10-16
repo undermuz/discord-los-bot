@@ -58,6 +58,7 @@ describe("LeaderboardService", () => {
         savedConfirmations = []
         transactionSaves = []
         playerChangeRepository.find.mockResolvedValue([])
+        playerStateRepository.find.mockResolvedValue([])
         matchRepository.save.mockImplementation((entity) => entity)
 
         const dataSourceManager = {
@@ -592,7 +593,10 @@ describe("LeaderboardService", () => {
             ]),
         )
         expect(playerStateRepository.save).toHaveBeenCalledWith(
-            expect.objectContaining({ isFrozen: false }),
+            expect.objectContaining({
+                isFrozen: false,
+                statsResetAt: expect.any(Date),
+            }),
         )
     })
 
@@ -667,6 +671,144 @@ describe("LeaderboardService", () => {
                 }),
             ]),
         )
+        expect(playerStateRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+                isFrozen: false,
+                statsResetAt: expect.any(Date),
+            }),
+        )
+    })
+
+    it("ignores verified matches from before a stats reset", async () => {
+        const resetAt = new Date("2026-06-01T00:00:00.000Z")
+
+        playerStateRepository.findOne.mockResolvedValue({
+            id: 1,
+            guildId: "g1",
+            discordUserId: "u1",
+            isFrozen: false,
+            statsResetAt: resetAt,
+        })
+        playerRatingRepository.findOne.mockResolvedValue({
+            guildId: "g1",
+            discordUserId: "u1",
+            format: MatchFormat.OneVsOne,
+            rating: 1000,
+            calibrationCompleted: false,
+            verifiedMatchCount: 0,
+        })
+        playerRatingRepository.find.mockResolvedValue([
+            {
+                guildId: "g1",
+                discordUserId: "u1",
+                format: MatchFormat.OneVsOne,
+                rating: 1000,
+            },
+        ])
+        matchRepository.find.mockImplementation(({ where }) => {
+            const matches = [
+                "2026-01-01T00:00:00.000Z",
+                "2026-02-01T00:00:00.000Z",
+                "2026-03-01T00:00:00.000Z",
+                "2026-07-01T00:00:00.000Z",
+            ].map((verifiedAt) => ({
+                guildId: "g1",
+                format: MatchFormat.OneVsOne,
+                status: MatchStatus.Verified,
+                winnerUserId: "u1",
+                loserUserId: "x",
+                winnerPartnerUserId: null,
+                loserPartnerUserId: null,
+                verifiedAt: new Date(verifiedAt),
+            }))
+
+            return matches.filter(
+                (match) =>
+                    match.guildId === where.guildId &&
+                    match.status === where.status &&
+                    (!where.format || match.format === where.format),
+            )
+        })
+
+        const summary = await service.getPlayerLeaderboardSummary("g1", "u1")
+        const duel = summary.formatRatings.find(
+            (entry) => entry.format === MatchFormat.OneVsOne,
+        )
+
+        expect(summary.state.totalVerifiedMatches).toBe(1)
+        expect(duel).toEqual(
+            expect.objectContaining({
+                k1: 1,
+                k2: 3,
+            }),
+        )
+    })
+
+    it("keeps a shared match in the opponent count after a stats reset", async () => {
+        playerRatingRepository.find.mockImplementation(({ where }) => {
+            const allRatings = [
+                {
+                    guildId: "g1",
+                    discordUserId: "u1",
+                    format: MatchFormat.OneVsOne,
+                    rating: 1100,
+                },
+                {
+                    guildId: "g1",
+                    discordUserId: "u2",
+                    format: MatchFormat.OneVsOne,
+                    rating: 1200,
+                },
+            ]
+            const filters = Array.isArray(where) ? where : [where]
+
+            return Promise.resolve(
+                allRatings.filter((rating) =>
+                    filters.some(
+                        (filter) =>
+                            rating.guildId === filter.guildId &&
+                            (!filter.discordUserId ||
+                                rating.discordUserId ===
+                                    filter.discordUserId) &&
+                            (!filter.format || rating.format === filter.format),
+                    ),
+                ),
+            )
+        })
+        playerStateRepository.find.mockResolvedValue([
+            {
+                id: 1,
+                guildId: "g1",
+                discordUserId: "u1",
+                isFrozen: false,
+                statsResetAt: new Date("2026-06-01T00:00:00.000Z"),
+            },
+        ])
+        playerStateRepository.findOne.mockResolvedValue(null)
+        playerStateRepository.save.mockImplementation((entity) =>
+            Promise.resolve({ id: 2, ...entity }),
+        )
+        matchRepository.find.mockResolvedValue([
+            {
+                guildId: "g1",
+                format: MatchFormat.OneVsOne,
+                status: MatchStatus.Verified,
+                winnerUserId: "u1",
+                loserUserId: "u2",
+                winnerPartnerUserId: null,
+                loserPartnerUserId: null,
+                verifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+            },
+        ])
+
+        const top = await service.getTopPlayers("g1", 10)
+
+        expect(top).toEqual([
+            expect.objectContaining({
+                discordUserId: "u2",
+                totalVerifiedMatches: 1,
+            }),
+        ])
     })
 
     function pendingMatch(status = MatchStatus.Pending): RatingMatch {

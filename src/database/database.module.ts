@@ -23,6 +23,7 @@ import { UpdateCalibrationAndFreeze1738291700000 } from "./migrations/1738291700
 import { ImportEmojiToRolesFromDb21738291800000 } from "./migrations/1738291800000-ImportEmojiToRolesFromDb2.js"
 import { SplitFormatAndSeries1738291900000 } from "./migrations/1738291900000-SplitFormatAndSeries.js"
 import { AddMatchCancellation1738292000000 } from "./migrations/1738292000000-AddMatchCancellation.js"
+import { AddStatsResetAt1738292100000 } from "./migrations/1738292100000-AddStatsResetAt.js"
 
 const leaderboardEntities = [
     LeaderboardGuildConfig,
@@ -60,6 +61,7 @@ const leaderboardEntities = [
                     ImportEmojiToRolesFromDb21738291800000,
                     SplitFormatAndSeries1738291900000,
                     AddMatchCancellation1738292000000,
+                    AddStatsResetAt1738292100000,
                 ],
                 migrationsRun: true,
                 synchronize: false,

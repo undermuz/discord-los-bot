@@ -42,4 +42,7 @@ export class PlayerState {
 
     @Column({ default: false })
     isFrozen: boolean
+
+    @Column({ type: "datetime", nullable: true })
+    statsResetAt: Date | null
 }
