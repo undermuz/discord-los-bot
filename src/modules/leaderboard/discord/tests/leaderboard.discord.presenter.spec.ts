@@ -34,6 +34,7 @@ describe("LeaderboardDiscordPresenter", () => {
             ],
         } as never)
 
+        expect(content).toContain("**Рейтинговый матч №1")
         expect(content).toContain("1:0")
         expect(content).toContain("McMinnville OR")
         expect(content).toContain("Achilles vs Alice")
@@ -124,6 +125,58 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).not.toContain("Ожидают подтверждения")
     })
 
+    it("shows rating deltas on a verified match", () => {
+        const content = presenter.formatMatchContent({
+            match: {
+                id: 1,
+                format: "1x1",
+                seriesLength: "Bo1",
+                winnerUserId: "w1",
+                loserUserId: "l1",
+                winnerScore: 1,
+                loserScore: 0,
+                status: MatchStatus.Verified,
+            },
+            config: { verifyEmoji: "✅" },
+            winnerRating: 1030,
+            loserRating: 1000,
+            winnerDelta: 15,
+            loserDelta: -15,
+            confirmations: [],
+            pendingUsers: [],
+            rounds: [],
+        } as never)
+
+        expect(content).toContain("Рейтинг: 1030.00 (🔼15) / 1000.00 (🔻15)")
+    })
+
+    it("omits rating deltas when the match has none", () => {
+        const content = presenter.formatMatchContent({
+            match: {
+                id: 1,
+                format: "1x1",
+                seriesLength: "Bo1",
+                winnerUserId: "w1",
+                loserUserId: "l1",
+                winnerScore: 1,
+                loserScore: 0,
+                status: MatchStatus.Pending,
+            },
+            config: { verifyEmoji: "✅" },
+            winnerRating: 1000,
+            loserRating: 990,
+            winnerDelta: null,
+            loserDelta: null,
+            confirmations: [],
+            pendingUsers: ["w1", "l1"],
+            rounds: [],
+        } as never)
+
+        expect(content).toContain("Рейтинг: 1000.00 / 990.00")
+        expect(content).not.toContain("🔼")
+        expect(content).not.toContain("🔻")
+    })
+
     it("shows cancelled footer", () => {
         const content = presenter.formatMatchContent({
             match: {
@@ -196,6 +249,7 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain("/leaderboard-top")
         expect(content).toContain("/leaderboard-matches")
         expect(content).toContain("/leaderboard-adjust-rating")
+        expect(content).toContain("/leaderboard-refresh-match")
         expect(content).toContain("/leaderboard-config")
         expect(content).toContain("**4**")
         expect(content).toContain("**90**")

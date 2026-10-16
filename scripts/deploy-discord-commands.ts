@@ -559,6 +559,18 @@ const commands = [
                 .setRequired(false),
         ),
     new SlashCommandBuilder()
+        .setName("leaderboard-refresh-match")
+        .setDescription("Rewrite one or more match messages from current data")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addStringOption((option) =>
+            option
+                .setName("matches")
+                .setDescription(
+                    "Match ids or Discord message ids, separated by commas",
+                )
+                .setRequired(true),
+        ),
+    new SlashCommandBuilder()
         .setName("leaderboard-reset-cache")
         .setDescription("Reload the cached maps and heroes lists")
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),

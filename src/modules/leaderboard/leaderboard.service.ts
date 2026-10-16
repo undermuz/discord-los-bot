@@ -566,16 +566,44 @@ export class LeaderboardService {
                     (confirmation) => confirmation.discordUserId === userId,
                 ),
         )
+        const ratingChanges = await this.playerChangeRepository.find({
+            where: { matchId: match.id },
+        })
 
         return {
             match,
             config,
             winnerRating,
             loserRating,
+            winnerDelta: this.sideRatingDelta(
+                this.sideUserIds(match.winnerUserId, match.winnerPartnerUserId),
+                ratingChanges,
+            ),
+            loserDelta: this.sideRatingDelta(
+                this.sideUserIds(match.loserUserId, match.loserPartnerUserId),
+                ratingChanges,
+            ),
             confirmations,
             pendingUsers,
             rounds,
         }
+    }
+
+    private sideRatingDelta(
+        userIds: string[],
+        changes: RatingMatchPlayerChange[],
+    ): number | null {
+        const deltas = changes
+            .filter((change) => userIds.includes(change.discordUserId))
+            .map((change) => change.ratingDelta)
+
+        if (deltas.length === 0) {
+            return null
+        }
+
+        return roundRating(
+            deltas.reduce((total, delta) => total + delta, 0) / deltas.length,
+        )
     }
 
     async freezeInactivePlayer(

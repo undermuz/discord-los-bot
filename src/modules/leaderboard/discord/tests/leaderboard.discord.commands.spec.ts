@@ -55,6 +55,7 @@ describe("LeaderboardDiscordCommands", () => {
             }),
             attachMessageId: vi.fn(),
             finalizeMatch: vi.fn(),
+            findMatchByMessageAnyStatus: vi.fn().mockResolvedValue(null),
             getRecentMatches: vi.fn().mockResolvedValue([]),
             adjustPlayerRating: vi.fn().mockResolvedValue({
                 delta: 25,
@@ -748,5 +749,209 @@ describe("LeaderboardDiscordCommands", () => {
                 ),
             }),
         )
+    })
+
+    it("rejects match refresh without administrator permission", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-refresh-match",
+            { matches: "65" },
+            {
+                guild: { id: "g1" },
+                member: { permissions: { has: () => false } },
+            },
+        )
+
+        vi.mocked(leaderboardService.getMatchDisplayData).mockClear()
+
+        await handlers.get("leaderboard-refresh-match")!(interaction as never)
+
+        expect(leaderboardService.getMatchDisplayData).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Administrator permission required",
+            ephemeral: true,
+        })
+    })
+
+    it("rejects match ids that are not positive numbers", async () => {
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-refresh-match",
+            { matches: "65, abc" },
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: (flag: bigint) =>
+                            flag === PermissionFlagsBits.Administrator,
+                    },
+                },
+            },
+        )
+
+        vi.mocked(leaderboardService.getMatchDisplayData).mockClear()
+
+        await handlers.get("leaderboard-refresh-match")!(interaction as never)
+
+        expect(leaderboardService.getMatchDisplayData).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
+            content: "Ids must be positive numbers separated by commas",
+            ephemeral: true,
+        })
+    })
+
+    it("rewrites messages for comma-separated match ids", async () => {
+        const refresh = vi
+            .spyOn(LeaderboardDiscordPresenter.prototype, "refreshMatchMessage")
+            .mockResolvedValue(undefined)
+        const message = { id: "m65", editable: true, partial: false }
+        const fetchMessage = vi.fn().mockResolvedValue(message)
+        vi.mocked(leaderboardService.getMatchDisplayData).mockImplementation(((
+            matchId: number,
+        ) =>
+            Promise.resolve({
+                match: {
+                    id: matchId,
+                    guildId: "g1",
+                    channelId: "c1",
+                    messageId: `m${matchId}`,
+                },
+            })) as never)
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-refresh-match",
+            { matches: "65, 72" },
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: (flag: bigint) =>
+                            flag === PermissionFlagsBits.Administrator,
+                    },
+                },
+                deferReply: vi.fn().mockResolvedValue(undefined),
+                client: {
+                    channels: {
+                        fetch: vi.fn().mockResolvedValue({
+                            isTextBased: () => true,
+                            messages: { fetch: fetchMessage },
+                        }),
+                    },
+                },
+            },
+        )
+
+        await handlers.get("leaderboard-refresh-match")!(interaction as never)
+
+        expect(refresh).toHaveBeenCalledTimes(2)
+        expect(refresh).toHaveBeenCalledWith(message, 65)
+        expect(refresh).toHaveBeenCalledWith(message, 72)
+        expect(interaction.editReply).toHaveBeenCalledWith("Updated: #65, #72")
+        refresh.mockRestore()
+    })
+
+    it("rewrites a match found by its Discord message id", async () => {
+        const messageId = "131000000000000001"
+        const refresh = vi
+            .spyOn(LeaderboardDiscordPresenter.prototype, "refreshMatchMessage")
+            .mockResolvedValue(undefined)
+        const message = { id: messageId, editable: true, partial: false }
+        vi.mocked(
+            leaderboardService.findMatchByMessageAnyStatus,
+        ).mockImplementation((_guildId: string, target: string) =>
+            target === messageId ? ({ id: 65 } as never) : null,
+        )
+        vi.mocked(leaderboardService.getMatchDisplayData).mockResolvedValue({
+            match: {
+                id: 65,
+                guildId: "g1",
+                channelId: "c1",
+                messageId,
+            },
+        } as never)
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-refresh-match",
+            { matches: messageId },
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: (flag: bigint) =>
+                            flag === PermissionFlagsBits.Administrator,
+                    },
+                },
+                deferReply: vi.fn().mockResolvedValue(undefined),
+                client: {
+                    channels: {
+                        fetch: vi.fn().mockResolvedValue({
+                            isTextBased: () => true,
+                            messages: {
+                                fetch: vi.fn().mockResolvedValue(message),
+                            },
+                        }),
+                    },
+                },
+            },
+        )
+
+        await handlers.get("leaderboard-refresh-match")!(interaction as never)
+
+        expect(
+            leaderboardService.findMatchByMessageAnyStatus,
+        ).toHaveBeenCalledWith("g1", messageId)
+        expect(leaderboardService.getMatchDisplayData).toHaveBeenCalledWith(65)
+        expect(refresh).toHaveBeenCalledWith(message, 65)
+        expect(interaction.editReply).toHaveBeenCalledWith("Updated: #65")
+        refresh.mockRestore()
+    })
+
+    it("reports matches that cannot be refreshed", async () => {
+        const refresh = vi
+            .spyOn(LeaderboardDiscordPresenter.prototype, "refreshMatchMessage")
+            .mockResolvedValue(undefined)
+        vi.mocked(leaderboardService.getMatchDisplayData).mockImplementation(((
+            matchId: number,
+        ) => {
+            if (matchId === 7) {
+                return Promise.reject(new Error("Match not found"))
+            }
+
+            return Promise.resolve({
+                match: {
+                    id: matchId,
+                    guildId: matchId === 99 ? "other" : "g1",
+                    channelId: "c1",
+                    messageId: matchId === 3 ? null : `m${matchId}`,
+                },
+            })
+        }) as never)
+        const interaction = createMockChatInputInteraction(
+            "leaderboard-refresh-match",
+            { matches: "7, 99, 3" },
+            {
+                guild: { id: "g1" },
+                member: {
+                    permissions: {
+                        has: (flag: bigint) =>
+                            flag === PermissionFlagsBits.Administrator,
+                    },
+                },
+                deferReply: vi.fn().mockResolvedValue(undefined),
+                client: {
+                    channels: {
+                        fetch: vi.fn(),
+                    },
+                },
+            },
+        )
+
+        await handlers.get("leaderboard-refresh-match")!(interaction as never)
+
+        expect(refresh).not.toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            [
+                "7: Match not found",
+                "99: Match belongs to another guild",
+                "3: Match has no Discord message",
+            ].join("\n"),
+        )
+        refresh.mockRestore()
     })
 })

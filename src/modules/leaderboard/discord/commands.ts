@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import {
     AutocompleteInteraction,
+    Channel,
     ChatInputCommandInteraction,
     PermissionFlagsBits,
     TextChannel,
@@ -121,6 +122,10 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         this.discordService.registerCommand(
             "leaderboard-reset-cache",
             (interaction) => this.commandResetCatalogCache(interaction),
+        )
+        this.discordService.registerCommand(
+            "leaderboard-refresh-match",
+            (interaction) => this.commandRefreshMatchMessages(interaction),
         )
     }
 
@@ -1200,6 +1205,180 @@ export class LeaderboardDiscordCommands implements OnModuleInit {
         }
 
         return messages
+    }
+
+    private async commandRefreshMatchMessages(
+        interaction: ChatInputCommandInteraction,
+    ): Promise<void> {
+        if (!this.isAdmin(interaction)) {
+            await interaction.reply({
+                content: "Administrator permission required",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const guildId = interaction.guildId
+
+        if (!guildId) {
+            await interaction.reply({
+                content: "Guild only command",
+                ephemeral: true,
+            })
+            return
+        }
+
+        const targets = this.parseRefreshTargets(
+            interaction.options.getString("matches", true),
+        )
+
+        if (!targets) {
+            await interaction.reply({
+                content: "Ids must be positive numbers separated by commas",
+                ephemeral: true,
+            })
+            return
+        }
+
+        await interaction.deferReply({ ephemeral: true })
+
+        const updated: number[] = []
+        const failed: string[] = []
+
+        for (const target of targets) {
+            try {
+                const matchId = await this.resolveRefreshMatchId(
+                    guildId,
+                    target,
+                )
+                await this.refreshStoredMatchMessage(
+                    interaction,
+                    guildId,
+                    matchId,
+                )
+                updated.push(matchId)
+            } catch (error) {
+                this.logger.error(
+                    `Failed to refresh match ${target}`,
+                    error instanceof Error ? error.stack : String(error),
+                )
+                failed.push(
+                    `${target}: ${this.refreshMatchErrorMessage(error)}`,
+                )
+            }
+        }
+
+        const lines: string[] = []
+
+        if (updated.length > 0) {
+            lines.push(`Updated: ${updated.map((id) => `#${id}`).join(", ")}`)
+        }
+
+        lines.push(...failed)
+
+        await interaction.editReply(lines.join("\n"))
+    }
+
+    private parseRefreshTargets(raw: string): string[] | null {
+        const parts = raw
+            .split(",")
+            .map((part) => part.trim())
+            .filter((part) => part.length > 0)
+
+        if (
+            parts.length === 0 ||
+            parts.some((part) => !/^[1-9]\d*$/.test(part))
+        ) {
+            return null
+        }
+
+        return [...new Set(parts)]
+    }
+
+    private async resolveRefreshMatchId(
+        guildId: string,
+        target: string,
+    ): Promise<number> {
+        const matchByMessage =
+            await this.leaderboardService.findMatchByMessageAnyStatus(
+                guildId,
+                target,
+            )
+
+        if (matchByMessage) {
+            return matchByMessage.id
+        }
+
+        if (!this.isDatabaseMatchId(target)) {
+            throw new Error("Match not found")
+        }
+
+        return Number(target)
+    }
+
+    private isDatabaseMatchId(target: string): boolean {
+        const value = Number(target)
+
+        return Number.isSafeInteger(value) && String(value) === target
+    }
+
+    private async refreshStoredMatchMessage(
+        interaction: ChatInputCommandInteraction,
+        guildId: string,
+        matchId: number,
+    ): Promise<void> {
+        const display =
+            await this.leaderboardService.getMatchDisplayData(matchId)
+        const { match } = display
+
+        if (match.guildId !== guildId) {
+            throw new Error("Match belongs to another guild")
+        }
+
+        if (!match.messageId) {
+            throw new Error("Match has no Discord message")
+        }
+
+        const channel = await interaction.client.channels.fetch(match.channelId)
+
+        if (!this.isFetchableTextChannel(channel)) {
+            throw new Error("Match channel is not available")
+        }
+
+        const message = await channel.messages.fetch(match.messageId)
+
+        if (!message.editable) {
+            throw new Error("Match message is not editable")
+        }
+
+        await this.presenter.refreshMatchMessage(message, match.id)
+    }
+
+    private isFetchableTextChannel(
+        channel: Channel | null,
+    ): channel is TextChannel {
+        return (
+            !!channel &&
+            channel.isTextBased() &&
+            "messages" in channel &&
+            typeof channel.messages.fetch === "function"
+        )
+    }
+
+    private refreshMatchErrorMessage(error: unknown): string {
+        if (!(error instanceof Error)) {
+            return "update failed"
+        }
+
+        const known = [
+            "Match not found",
+            "Match belongs to another guild",
+            "Match has no Discord message",
+            "Match channel is not available",
+            "Match message is not editable",
+        ]
+
+        return known.includes(error.message) ? error.message : "update failed"
     }
 
     private isAdmin(interaction: ChatInputCommandInteraction): boolean {

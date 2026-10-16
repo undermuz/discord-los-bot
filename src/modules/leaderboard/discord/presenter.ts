@@ -6,7 +6,7 @@ import {
     RatingMatch,
     RatingMatchRound,
 } from "../../../database/entities/rating-match.entity.js"
-import { formatRating } from "../rating.util.js"
+import { formatRating, roundRating } from "../rating.util.js"
 import {
     LeaderboardService,
     RecentMatchDetails,
@@ -35,6 +35,8 @@ export class LeaderboardDiscordPresenter {
             config,
             winnerRating,
             loserRating,
+            winnerDelta,
+            loserDelta,
             pendingUsers,
             rounds,
         } = display
@@ -50,9 +52,9 @@ export class LeaderboardDiscordPresenter {
         )
 
         const lines = [
-            `**Новый рейтинговый матч (${match.format}, ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
+            `**Рейтинговый матч №${match.id} (${match.format}, ${match.seriesLength}) — ${match.winnerScore}:${match.loserScore}**`,
             `${this.formatSide(match.winnerUserId, match.winnerPartnerUserId)} vs ${this.formatSide(match.loserUserId, match.loserPartnerUserId)}`,
-            `Рейтинг: ${formatRating(winnerRating)} / ${formatRating(loserRating)}`,
+            `Рейтинг: ${this.formatRatingWithDelta(winnerRating, winnerDelta)} / ${this.formatRatingWithDelta(loserRating, loserDelta)}`,
             "",
         ]
 
@@ -100,6 +102,25 @@ export class LeaderboardDiscordPresenter {
         }
 
         return lines.join("\n")
+    }
+
+    private formatRatingWithDelta(
+        rating: number,
+        delta: number | null | undefined,
+    ): string {
+        const ratingText = formatRating(rating)
+
+        if (delta === null || delta === undefined) {
+            return ratingText
+        }
+
+        const arrow = delta < 0 ? "🔻" : "🔼"
+        const amount = roundRating(Math.abs(delta))
+            .toFixed(2)
+            .replace(/\.00$/, "")
+            .replace(/(\.\d)0$/, "$1")
+
+        return `${ratingText} (${arrow}${amount})`
     }
 
     private formatSide(userId: string, partnerUserId: string | null): string {
@@ -333,6 +354,7 @@ export class LeaderboardDiscordPresenter {
             "3. `/leaderboard-setup-special-roles` - задайте роли для **Калибровка** и **Заморозка**.",
             "4. `/leaderboard-setup-roles` - привяжите Discord-роли к тирам. Команду нужно выполнить для каждого тира.",
             "5. `/leaderboard-adjust-rating` - прибавить или убавить рейтинг игрока. Без формата правка применяется ко всем форматам.",
+            "6. `/leaderboard-refresh-match` - заново записать сообщения матчей. Id матча или сообщения, через запятую.",
             "",
             "**Для участников**",
             "",

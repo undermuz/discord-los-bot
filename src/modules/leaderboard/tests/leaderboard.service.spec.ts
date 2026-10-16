@@ -361,6 +361,32 @@ describe("LeaderboardService", () => {
         ).toBe(true)
     })
 
+    it("returns each side rating delta for the match message", async () => {
+        matchRepository.findOne.mockResolvedValue({
+            id: 5,
+            guildId: "g1",
+            format: MatchFormat.TwoVsTwo,
+            winnerUserId: "w1",
+            winnerPartnerUserId: "w2",
+            loserUserId: "l1",
+            loserPartnerUserId: "l2",
+        })
+        confirmationRepository.find.mockResolvedValue([])
+        roundRepository.find.mockResolvedValue([])
+        playerRatingRepository.findOne.mockResolvedValue(null)
+        playerChangeRepository.find.mockResolvedValue([
+            { discordUserId: "w1", ratingDelta: 12 },
+            { discordUserId: "w2", ratingDelta: 18 },
+            { discordUserId: "l1", ratingDelta: -15 },
+            { discordUserId: "l2", ratingDelta: -9 },
+        ])
+
+        const display = await service.getMatchDisplayData(5)
+
+        expect(display.winnerDelta).toBe(15)
+        expect(display.loserDelta).toBe(-12)
+    })
+
     it("rejects invalid series rounds", async () => {
         await expect(
             service.registerMatch({
