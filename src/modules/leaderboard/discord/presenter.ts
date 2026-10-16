@@ -180,6 +180,11 @@ export class LeaderboardDiscordPresenter {
             `**#${match.id}** ${match.format} ${match.seriesLength} ${match.winnerScore}:${match.loserScore} — ${this.formatMatchStatus(match)} — ${this.formatTimestamp(match.createdAt)}`,
             `${this.formatSide(match.winnerUserId, match.winnerPartnerUserId)} vs ${this.formatSide(match.loserUserId, match.loserPartnerUserId)}`,
         ]
+        const ratingLine = this.formatRatingChanges(match, entry.ratingChanges)
+
+        if (ratingLine) {
+            lines.push(ratingLine)
+        }
 
         for (const round of rounds) {
             lines.push(...this.formatRoundLines(round, rounds.length))
@@ -214,6 +219,46 @@ export class LeaderboardDiscordPresenter {
         lines.push(`   Первый ход: <@${round.firstPlayerUserId}>`)
 
         return lines
+    }
+
+    private formatRatingChanges(
+        match: RatingMatch,
+        ratingChanges: RecentMatchDetails["ratingChanges"] | undefined,
+    ): string | null {
+        if (!ratingChanges || ratingChanges.length === 0) {
+            return null
+        }
+
+        const deltaByUser = new Map(
+            ratingChanges.map((change) => [
+                change.discordUserId,
+                change.ratingDelta,
+            ]),
+        )
+        const participants = [
+            match.winnerUserId,
+            match.winnerPartnerUserId,
+            match.loserUserId,
+            match.loserPartnerUserId,
+        ].filter((userId): userId is string => Boolean(userId))
+        const parts = participants
+            .filter((userId) => deltaByUser.has(userId))
+            .map(
+                (userId) =>
+                    `<@${userId}> ${this.formatSignedRating(deltaByUser.get(userId) ?? 0)}`,
+            )
+
+        if (parts.length === 0) {
+            return null
+        }
+
+        return `Рейтинг: ${parts.join(", ")}`
+    }
+
+    private formatSignedRating(delta: number): string {
+        const formatted = formatRating(delta)
+
+        return delta > 0 ? `+${formatted}` : formatted
     }
 
     private formatMatchStatus(match: RatingMatch): string {

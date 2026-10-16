@@ -45,6 +45,7 @@ export interface RatingAdjustment {
 export interface RecentMatchDetails {
     match: RatingMatch
     rounds: RatingMatchRound[]
+    ratingChanges: RatingMatchPlayerChange[]
 }
 
 @Injectable()
@@ -751,9 +752,21 @@ export class LeaderboardService {
             )
         }
 
+        const ratingChanges = await this.playerChangeRepository.find({
+            where: { matchId: In(matches.map((match) => match.id)) },
+        })
+        const changesByMatchId = new Map<number, RatingMatchPlayerChange[]>()
+
+        for (const change of ratingChanges) {
+            const matchChanges = changesByMatchId.get(change.matchId) ?? []
+            matchChanges.push(change)
+            changesByMatchId.set(change.matchId, matchChanges)
+        }
+
         return matches.map((match) => ({
             match,
             rounds: roundsByMatchId.get(match.id) ?? [],
+            ratingChanges: changesByMatchId.get(match.id) ?? [],
         }))
     }
 

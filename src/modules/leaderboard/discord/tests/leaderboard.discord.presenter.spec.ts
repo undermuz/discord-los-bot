@@ -274,6 +274,10 @@ describe("LeaderboardDiscordPresenter", () => {
                                 firstPlayerUserId: "l1",
                             },
                         ],
+                        ratingChanges: [
+                            { discordUserId: "w1", ratingDelta: 12.5 },
+                            { discordUserId: "l1", ratingDelta: -8 },
+                        ],
                     },
                 ] as never,
                 {
@@ -289,6 +293,7 @@ describe("LeaderboardDiscordPresenter", () => {
         expect(content).toContain(
             "**#4** 1x1 Bo1 1:0 — верифицирован — 03.02.2026 15:04",
         )
+        expect(content).toContain("Рейтинг: <@w1> +12.50, <@l1> -8.00")
         expect(content).toContain("McMinnville OR")
         expect(content).toContain("Achilles vs Alice")
         expect(content).toContain("Первый ход: <@l1>")

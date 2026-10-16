@@ -988,6 +988,10 @@ describe("LeaderboardService", () => {
             { matchId: 2, roundNumber: 1, mapName: "Only" },
             { matchId: 1, roundNumber: 1, mapName: "First" },
         ])
+        playerChangeRepository.find.mockResolvedValue([
+            { matchId: 2, discordUserId: "u1", ratingDelta: 12.5 },
+            { matchId: 1, discordUserId: "u2", ratingDelta: -8 },
+        ])
 
         const from = new Date(2026, 0, 1)
         const result = await service.getRecentMatches("g1", {
@@ -1012,12 +1016,18 @@ describe("LeaderboardService", () => {
             {
                 match: { id: 2, guildId: "g1" },
                 rounds: [{ matchId: 2, roundNumber: 1, mapName: "Only" }],
+                ratingChanges: [
+                    { matchId: 2, discordUserId: "u1", ratingDelta: 12.5 },
+                ],
             },
             {
                 match: { id: 1, guildId: "g1" },
                 rounds: [
                     { matchId: 1, roundNumber: 1, mapName: "First" },
                     { matchId: 1, roundNumber: 2, mapName: "Second" },
+                ],
+                ratingChanges: [
+                    { matchId: 1, discordUserId: "u2", ratingDelta: -8 },
                 ],
             },
         ])
